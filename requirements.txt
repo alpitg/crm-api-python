@@ -1,0 +1,6 @@
+fastapi
+motor
+uvicorn
+pydantic[dotenv]
+email-validator
+python-multipart
