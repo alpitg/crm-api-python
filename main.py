@@ -1,5 +1,6 @@
 from fastapi import FastAPI
-from app.controllers.default import DeafultController
+from core.routes import setup_router
+from core.cores import setup_cors
 
 app = FastAPI(
     title="Art Show CRM API",
@@ -8,8 +9,14 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Import and register master routes
-DeafultController(app).register_routes()
+# load_dotenv()
+# print(load_dotenv(find_dotenv()))
+
+# Register routes
+setup_router(app)
+
+# Register CORS middleware
+setup_cors(app)
 
 
 # ✅ Only for development

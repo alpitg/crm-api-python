@@ -3,11 +3,11 @@ from typing import Literal
 from datetime import datetime
 
 class OrderSummaryOut(BaseModel):
-    orderId: str = Field(..., alias="_id")
+    orderId: str
     customerName: str
     date: datetime
     itemCount: int
-    paymentStatus: Literal["draft", "issued", "paid"]
+    paymentStatus: Literal["pending", "paid", "failed", "refunded"] # case-sensitive
     total: float
     orderStatus: Literal["pending", "fulfilled", "partial", "cancelled"]
 

@@ -98,10 +98,10 @@ async def get_all_orders():
 
         # Get payment status from invoice (if available)
         invoice = await invoices_collection.find_one({"orderIds": order["_id"]})
-        payment_status = invoice["paymentStatus"] if invoice and "paymentStatus" in invoice else "draft"
+        payment_status = invoice["paymentStatus"] if invoice and "paymentStatus" in invoice else "pending"
 
         summary = {
-            "_id": str(order["_id"]),
+            "orderId": str(order["_id"]),
             "customerName": customer.get("name", ""),
             "date": order.get("createdAt"),
             "itemCount": len(order.get("items", [])),
