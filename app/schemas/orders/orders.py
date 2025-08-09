@@ -1,26 +1,27 @@
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, model_validator
+from typing import Any, Optional, List
 from datetime import datetime
 
 from app.schemas.orders.invoice import InvoiceIn
+from core.sanitize import sanitize_input
 
 # ---------- Misc Charges ----------
 class MiscCharge(BaseModel):
     label: str
-    amount: float
+    amount: float = 0.0
 
 # ---------- Customization ----------
 class FrameDetails(BaseModel):
-    type: str
-    color: str
-    width: float
-    height: float
+    type: Optional[str] = 0.0
+    color: Optional[str] = None
+    width: Optional[float] = 0.0
+    height: Optional[float] = 0.0
 
 class GlassDetails(BaseModel):
     isEnabled: bool = False
     type: Optional[str] = None
-    width: Optional[float] = None
-    height: Optional[float] = None
+    width: Optional[float] = 0.0
+    height: Optional[float] = 0.0
 
 class MountingDetails(BaseModel):
     isEnabled: bool = False
@@ -36,9 +37,9 @@ class AdditionalServices(BaseModel):
 
 class CustomizedDetails(BaseModel):
     name: str
-    description: str
-    width: float
-    height: float
+    description: Optional[str]
+    width: Optional[float] = 0.00
+    height: Optional[float] = 0.00
     frame: Optional[FrameDetails] = None
     glass: Optional[GlassDetails] = None
     mounting: Optional[MountingDetails] = None
@@ -46,9 +47,9 @@ class CustomizedDetails(BaseModel):
 
 # ---------- Order Item ----------
 class OrderItemIn(BaseModel):
-    productId: str
-    quantity: int
-    unitPrice: float
+    productId: Optional[str] = 0
+    quantity: int = 0
+    unitPrice: float = 0.0
     discountedQuantity: int = 0
     discountAmount: float = 0.0
     cancelledQty: Optional[int] = 0
@@ -56,9 +57,9 @@ class OrderItemIn(BaseModel):
 
 # ---------- Main Order ----------
 class OrderIn(BaseModel):
-    customerId: str
+    customerName: str
+    customerId: Optional[str] = None  # Use ObjectId in backend
     items: List[OrderItemIn]
-    note: str = ""
     advancePayment: float = 0
     miscCharges: List[MiscCharge] = []
     paymentMode: Optional[str] = None
@@ -67,10 +68,7 @@ class OrderIn(BaseModel):
     handledBy: Optional[str] = None
     createdAt: Optional[datetime] = None  # auto-fill in backend
     likelyDateOfDelivery: Optional[datetime] = None
-
-class OrderWithInvoiceIn(BaseModel):
-    order: OrderIn
-    invoice: Optional[InvoiceIn] = None
+    note: Optional[str] = ""
 
 # ---------- Output ----------
 class OrderOut(BaseModel):
@@ -79,3 +77,17 @@ class OrderOut(BaseModel):
     totalDiscountAmount: Optional[float] = 0.0
     totalAmount: Optional[float] = 0.0
     cancelledAmount: Optional[float] = 0.0
+
+class OrderWithInvoiceIn(BaseModel):
+    order: OrderIn
+    invoice: Optional[InvoiceIn] = None
+
+    @model_validator(mode="before")
+    def sanitize_empty_strings(cls, values):
+        return sanitize_input(values)
+
+class OrderWithInvoiceOut(BaseModel):
+    order: OrderOut
+    invoice: Optional[Any] = None
+
+    

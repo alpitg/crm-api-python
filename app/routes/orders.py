@@ -1,10 +1,11 @@
-from typing import List
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated, List
+from fastapi import APIRouter, Depends, HTTPException, status
 from bson import ObjectId
 from datetime import datetime, timezone
 from app.db.mongo import db
-from app.schemas.orders.orders import OrderIn, OrderOut, OrderWithInvoiceIn
+from app.schemas.orders.orders import OrderIn, OrderOut, OrderWithInvoiceIn, OrderWithInvoiceOut
 from app.schemas.orders.order_summary import OrderSummaryOut
+from core.sanitize import sanitize_input
 
 router = APIRouter()
 orders_collection = db["orders"]
@@ -18,7 +19,7 @@ async def get_all_orders():
     async for order in orders_collection.find({}):
         customer = await customers_collection.find_one({"_id": ObjectId(order["customerId"])})
         if not customer:
-            continue
+            customer = {"name": order.get("customerName", "")}
 
         # Get payment status from invoice (if available)
         invoice = await invoices_collection.find_one({"orderIds": order["_id"]})
@@ -38,12 +39,12 @@ async def get_all_orders():
 
     return orders_summary
 
-
-@router.post("/place_order", status_code=status.HTTP_201_CREATED)
+@router.post("/place-order", response_model=OrderWithInvoiceOut, status_code=status.HTTP_201_CREATED)
 async def place_order(payload: OrderWithInvoiceIn):
+
     order = payload.order
     invoice_data = payload.invoice
-    order.customerId = ObjectId(order.customerId) if order.customerId else None
+    order.customerId = ObjectId(order.customerId) if order.customerId and ObjectId.is_valid(order.customerId) else None
 
     # --- Step 1: Calculate order financials ---
     subtotal = 0.0
