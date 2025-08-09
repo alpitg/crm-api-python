@@ -139,7 +139,6 @@ prepare the industry best practice schema in mongo
 
       discountedQuantity: Number?,       // items that got discount
       discountAmount: Number,            // total discount value on this line
-      discountPercentage: Number,        // discount percent applied
 
       cancelledQty: Number,              // if partially cancelled
       netQuantity: Number,               // billable qty = quantity - cancelledQty
@@ -173,7 +172,6 @@ prepare the industry best practice schema in mongo
       unitPrice: Number,
 
       discountAmount: Number,
-      discountPercentage: Number,
 
       amountBeforeDiscount: Number,
       amountAfterDiscount: Number
