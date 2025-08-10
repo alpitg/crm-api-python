@@ -26,7 +26,7 @@ async def get_all_orders():
         payment_status = invoice["paymentStatus"] if invoice and "paymentStatus" in invoice else "pending"
 
         summary = {
-            "orderId": str(order["_id"]),
+            "id": str(order["_id"]),
             "customerName": customer.get("name", ""),
             "createdAt": order.get("createdAt"),
             "itemCount": len(order.get("items", [])),
