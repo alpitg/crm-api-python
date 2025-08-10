@@ -50,11 +50,11 @@ async def get_order_details(order_id: str):
     if not order_doc:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    order_doc = stringify_object_ids(order_doc)
     order_doc["id"] = order_doc.pop("_id")
+    order_doc = stringify_object_ids(order_doc)
 
     # 3. Prepare OrderIn model (full details)
-    order_in = OrderIn(**{k: v for k, v in order_doc.items() if k != "id"})
+    order_in = OrderIn(**order_doc) 
 
     # 4. Fetch invoice if exists
     invoice_out = None

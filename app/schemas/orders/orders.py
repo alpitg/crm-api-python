@@ -57,6 +57,7 @@ class OrderItemIn(BaseModel):
 
 # ---------- Main Order ----------
 class OrderIn(BaseModel):
+    id: Optional[str] = None
     customerName: str
     customerId: Optional[str] = None  # Use ObjectId in backend
     items: List[OrderItemIn]
