@@ -3,7 +3,7 @@ from typing import Literal, Optional
 from datetime import datetime
 
 class OrderSummaryOut(BaseModel):
-    orderId: str
+    id: str
     customerName: str
     createdAt: Optional[datetime]
     itemCount: int
