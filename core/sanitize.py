@@ -1,5 +1,6 @@
 
 from typing import TypeVar
+from bson import ObjectId
 from pydantic import BaseModel
 T = TypeVar("T", bound=BaseModel)
 
@@ -15,3 +16,14 @@ def sanitize_input(data: dict) -> dict:
         elif value == "":
             data[key] = None
     return data
+
+
+def stringify_object_ids(obj):
+    if isinstance(obj, dict):
+        return {k: stringify_object_ids(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [stringify_object_ids(i) for i in obj]
+    elif isinstance(obj, ObjectId):
+        return str(obj)
+    else:
+        return obj

@@ -1,11 +1,11 @@
-from typing import Annotated, List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List
+from fastapi import APIRouter, HTTPException, status
 from bson import ObjectId
 from datetime import datetime, timezone
 from app.db.mongo import db
-from app.schemas.orders.orders import OrderIn, OrderOut, OrderWithInvoiceIn, OrderWithInvoiceOut
+from app.schemas.orders.orders import OrderDetailOut, OrderOut, OrderWithInvoiceIn, OrderWithInvoiceOut
 from app.schemas.orders.order_summary import OrderSummaryOut
-from core.sanitize import sanitize_input
+from core.sanitize import stringify_object_ids
 
 router = APIRouter()
 orders_collection = db["orders"]
@@ -38,6 +38,24 @@ async def get_all_orders():
         orders_summary.append(summary)
 
     return orders_summary
+
+@router.get("/orders/{order_id}", response_model=OrderDetailOut)
+async def get_order_details(order_id: str):
+    # Validate ObjectId format
+    if not ObjectId.is_valid(order_id):
+        raise HTTPException(status_code=400, detail="Invalid order ID format")
+
+    # Fetch order from DB
+    order = await db.orders.find_one({"_id": ObjectId(order_id)})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    order = stringify_object_ids(order)
+    order["id"] = order.pop("_id")
+
+    # Return as OrderOut
+    return OrderDetailOut(**order)
+
 
 @router.post("/place-order", response_model=OrderWithInvoiceOut, status_code=status.HTTP_201_CREATED)
 async def place_order(payload: OrderWithInvoiceIn):
@@ -155,12 +173,3 @@ async def place_order(payload: OrderWithInvoiceIn):
     return response
 
 
-def stringify_object_ids(obj):
-    if isinstance(obj, dict):
-        return {k: stringify_object_ids(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [stringify_object_ids(i) for i in obj]
-    elif isinstance(obj, ObjectId):
-        return str(obj)
-    else:
-        return obj

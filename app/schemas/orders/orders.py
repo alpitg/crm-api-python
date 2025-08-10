@@ -47,7 +47,7 @@ class CustomizedDetails(BaseModel):
 
 # ---------- Order Item ----------
 class OrderItemIn(BaseModel):
-    productId: Optional[str] = 0
+    productId: Optional[str] = None
     quantity: int = 0
     unitPrice: float = 0.0
     discountedQuantity: int = 0
@@ -71,6 +71,13 @@ class OrderIn(BaseModel):
     note: Optional[str] = ""
 
 # ---------- Output ----------
+class OrderDetailOut(OrderIn):
+    id: str
+    subtotal: Optional[float] = 0.0
+    totalDiscountAmount: Optional[float] = 0.0
+    totalAmount: Optional[float] = 0.0
+    cancelledAmount: Optional[float] = 0.0
+
 class OrderOut(BaseModel):
     id: str
     subtotal: Optional[float] = 0.0
