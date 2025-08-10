@@ -1,11 +1,11 @@
 from pydantic import BaseModel, Field
-from typing import Literal
+from typing import Literal, Optional
 from datetime import datetime
 
 class OrderSummaryOut(BaseModel):
     orderId: str
     customerName: str
-    date: datetime
+    createdAt: Optional[datetime]
     itemCount: int
     paymentStatus: Literal["pending", "paid", "failed", "refunded"] # case-sensitive
     total: float
