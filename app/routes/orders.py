@@ -39,7 +39,7 @@ async def get_all_orders():
 
     return orders_summary
 
-@router.get("/orders/{order_id}", response_model=OrderDetailOut)
+@router.get("/{order_id}", response_model=OrderDetailOut)
 async def get_order_details(order_id: str):
     # Validate ObjectId format
     if not ObjectId.is_valid(order_id):
