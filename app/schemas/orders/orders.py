@@ -71,13 +71,6 @@ class OrderIn(BaseModel):
     note: Optional[str] = ""
 
 # ---------- Output ----------
-class OrderDetailOut(OrderIn):
-    id: str
-    subtotal: Optional[float] = 0.0
-    totalDiscountAmount: Optional[float] = 0.0
-    totalAmount: Optional[float] = 0.0
-    cancelledAmount: Optional[float] = 0.0
-
 class OrderOut(BaseModel):
     id: str
     subtotal: Optional[float] = 0.0
@@ -97,4 +90,6 @@ class OrderWithInvoiceOut(BaseModel):
     order: OrderOut
     invoice: Optional[Any] = None
 
-    
+class OrderDetailOut(BaseModel):
+    order: OrderIn
+    invoice: Optional[Any] = None

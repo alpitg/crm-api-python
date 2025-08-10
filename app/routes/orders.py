@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, status
 from bson import ObjectId
 from datetime import datetime, timezone
 from app.db.mongo import db
-from app.schemas.orders.orders import OrderDetailOut, OrderOut, OrderWithInvoiceIn, OrderWithInvoiceOut
+from app.schemas.orders.orders import OrderDetailOut, OrderIn, OrderOut, OrderWithInvoiceIn, OrderWithInvoiceOut
 from app.schemas.orders.order_summary import OrderSummaryOut
 from core.sanitize import stringify_object_ids
 
@@ -41,21 +41,31 @@ async def get_all_orders():
 
 @router.get("/{order_id}", response_model=OrderDetailOut)
 async def get_order_details(order_id: str):
-    # Validate ObjectId format
+    # 1. Validate order_id format
     if not ObjectId.is_valid(order_id):
         raise HTTPException(status_code=400, detail="Invalid order ID format")
 
-    # Fetch order from DB
-    order = await db.orders.find_one({"_id": ObjectId(order_id)})
-    if not order:
+    # 2. Fetch order
+    order_doc = await db.orders.find_one({"_id": ObjectId(order_id)})
+    if not order_doc:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    order = stringify_object_ids(order)
-    order["id"] = order.pop("_id")
+    order_doc = stringify_object_ids(order_doc)
+    order_doc["id"] = order_doc.pop("_id")
 
-    # Return as OrderOut
-    return OrderDetailOut(**order)
+    # 3. Prepare OrderIn model (full details)
+    order_in = OrderIn(**{k: v for k, v in order_doc.items() if k != "id"})
 
+    # 4. Fetch invoice if exists
+    invoice_out = None
+    if order_doc.get("invoiceId") and ObjectId.is_valid(order_doc["invoiceId"]):
+        invoice_doc = await db.invoices.find_one({"_id": ObjectId(order_doc["invoiceId"])})
+        if invoice_doc:
+            invoice_out = stringify_object_ids(invoice_doc)
+            invoice_out["id"] = invoice_out.pop("_id")
+
+    # 5. Return combined response
+    return OrderDetailOut(order=order_in, invoice=invoice_out)
 
 @router.post("/place-order", response_model=OrderWithInvoiceOut, status_code=status.HTTP_201_CREATED)
 async def place_order(payload: OrderWithInvoiceIn):
