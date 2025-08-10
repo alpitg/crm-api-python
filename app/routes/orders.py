@@ -32,7 +32,7 @@ async def get_all_orders():
             "itemCount": len(order.get("items", [])),
             "paymentStatus": payment_status,
             "total": order.get("totalAmount", 0.0),
-            "orderStatus": order.get("status", "pending"),
+            "orderStatus": order.get("orderStatus", "pending"),
         }
 
         orders_summary.append(summary)
@@ -69,6 +69,17 @@ async def get_order_details(order_id: str):
 
 @router.post("/place-order", response_model=OrderWithInvoiceOut, status_code=status.HTTP_201_CREATED)
 async def place_order(payload: OrderWithInvoiceIn):
+    '''
+        | Field                 | Belongs To | Why                                            |
+        | --------------------- | ---------- | ---------------------------------------------- |
+        | **discount**        | `Order`    | Pricing logic at time of order placement       |
+        | **advancePaid**     | `Invoice`  | Payment transaction info, affects balance owed |
+        | **paymentStatus**   | `Invoice`  |                                                |
+        | **paymentMode**     | `Invoice`  |                                                |
+        | **orderStatus**     | `Order`    |                                                |
+        | **invoiceStatus**   | `Invoice`  |                                                |
+
+    '''
 
     order = payload.order
     invoice_data = payload.invoice
@@ -76,9 +87,10 @@ async def place_order(payload: OrderWithInvoiceIn):
 
     # --- Step 1: Calculate order financials ---
     subtotal = 0.0
-    total_discount = 0.0
+    total_discount = order.discountAmount
     cancelled_amount = 0.0
 
+    #region Calculate discount per item
     for item in order.items:
         line_total = item.unitPrice * item.quantity
         subtotal += line_total
@@ -89,7 +101,9 @@ async def place_order(payload: OrderWithInvoiceIn):
             total_discount += item.unitPrice * item.discountedQuantity
         if item.cancelledQty:
             cancelled_amount += item.unitPrice * item.cancelledQty
+    #endregion
 
+    # calculate misc charges & discounts
     misc_total = sum(charge.amount for charge in order.miscCharges)
     total_amount = (subtotal - total_discount - cancelled_amount) + misc_total
 
@@ -113,14 +127,14 @@ async def place_order(payload: OrderWithInvoiceIn):
     created_invoice = None
 
     # --- Step 4: Handle Invoice Logic ---
-    if invoice_data:
+    if invoice_data and invoice_data.generateInvoice is True:
         # Case 1: Create a new invoice
         invoice_doc = invoice_data.model_dump()
         invoice_doc.update({
             "orderIds": [order_id],
             "totalAmount": total_amount,
-            "advancePaid": order.advancePayment,
-            "balanceAmount": total_amount - order.advancePayment,
+            "advancePaid": invoice_data.advancePaid,
+            "balanceAmount": total_amount - invoice_data.advancePaid,
             "createdAt": now
         })
 
@@ -143,40 +157,13 @@ async def place_order(payload: OrderWithInvoiceIn):
         # Also update the order_doc for return
         order_doc["invoiceId"] = invoice_id_str
 
-    elif order.invoiceId:
-        # Case 2: Link this order to an existing invoice
-        try:
-            invoice_obj_id = ObjectId(order.invoiceId)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid invoiceId format")
 
-        update_result = await invoices_collection.update_one(
-            {"_id": invoice_obj_id},
-            {
-                "$push": {"orderIds": order_id},
-                "$inc": {
-                    "totalAmount": total_amount,
-                    "advancePaid": order.advancePayment,
-                    "balanceAmount": total_amount - order.advancePayment
-                }
-            }
-        )
-
-        if update_result.modified_count == 0:
-            raise HTTPException(status_code=404, detail="Invoice not found")
-
-        # Update the order_doc for return
-        order_doc["invoiceId"] = order.invoiceId
+    order_doc["id" ] = str(order_id)
+    order_doc = stringify_object_ids(order_doc)
 
     # --- Step 5: Clean and prepare response ---
     response = {
-        "order": OrderOut(
-            id=str(order_id),
-            subtotal=subtotal,
-            totalDiscountAmount=total_discount,
-            totalAmount=total_amount,
-            cancelledAmount=cancelled_amount,
-        ),
+        "order": OrderOut(**order_doc),
         "invoice": stringify_object_ids(created_invoice)
     }
 

@@ -61,10 +61,9 @@ class OrderIn(BaseModel):
     customerName: str
     customerId: Optional[str] = None  # Use ObjectId in backend
     items: List[OrderItemIn]
-    advancePayment: float = 0
+    discountAmount: float = 0.0
     miscCharges: List[MiscCharge] = []
-    paymentMode: Optional[str] = None
-    paymentStatus: Optional[str] = None
+    orderStatus: Optional[str] = None
     invoiceId: Optional[str] = None  # Instead of embedding invoice
     handledBy: Optional[str] = None
     createdAt: Optional[datetime] = None  # auto-fill in backend
@@ -72,7 +71,7 @@ class OrderIn(BaseModel):
     note: Optional[str] = ""
 
 # ---------- Output ----------
-class OrderOut(BaseModel):
+class OrderOut(OrderIn):
     id: str
     subtotal: Optional[float] = 0.0
     totalDiscountAmount: Optional[float] = 0.0
@@ -81,7 +80,7 @@ class OrderOut(BaseModel):
 
 class OrderWithInvoiceIn(BaseModel):
     order: OrderIn
-    invoice: Optional[InvoiceIn] = None
+    invoice: InvoiceIn
 
     @model_validator(mode="before")
     def sanitize_empty_strings(cls, values):
