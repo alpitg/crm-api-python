@@ -16,14 +16,18 @@ invoices_collection = db["invoices"]
 async def get_all_orders():
     orders_summary = []
 
-    async for order in orders_collection.find({}):
+    async for order in orders_collection.find({}).sort("createdAt", -1):
         customer = await customers_collection.find_one({"_id": ObjectId(order["customerId"])})
         if not customer:
             customer = {"name": order.get("customerName", "")}
 
         # Get payment status from invoice (if available)
-        invoice = await invoices_collection.find_one({"orderIds": order["_id"]})
-        payment_status = invoice["paymentStatus"] if invoice and "paymentStatus" in invoice else "pending"
+        invoice = await invoices_collection.find({"orderIds": order["_id"]}).sort("createdAt", -1).to_list(length=1)
+
+        # Get the first (most recent) invoice
+        invoice = invoice[0] if invoice else None
+
+        payment_status = invoice.get("paymentStatus", "pending") if invoice else "pending"
 
         summary = {
             "id": str(order["_id"]),
