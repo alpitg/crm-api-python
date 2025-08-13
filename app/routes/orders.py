@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from app.db.mongo import db
 from app.schemas.orders.orders import OrderDetailOut, OrderIn, OrderOut, OrderWithInvoiceIn, OrderWithInvoiceOut
 from app.schemas.orders.order_summary import OrderSummaryOut
+from app.utils.order_util import generate_order_id
 from core.sanitize import stringify_object_ids
 
 router = APIRouter()
@@ -87,6 +88,8 @@ async def place_order(payload: OrderWithInvoiceIn):
 
     order = payload.order
     invoice_data = payload.invoice
+
+    order.orderCode = generate_order_id()
     order.customerId = ObjectId(order.customerId) if order.customerId and ObjectId.is_valid(order.customerId) else None
 
     # --- Step 1: Calculate order financials ---
