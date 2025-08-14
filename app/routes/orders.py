@@ -1,10 +1,10 @@
-from typing import List
-from fastapi import APIRouter, HTTPException, status
+from math import ceil
+from fastapi import APIRouter, Body, HTTPException, Query, status
 from bson import ObjectId
 from datetime import datetime, timezone
 from app.db.mongo import db
 from app.schemas.orders.orders import OrderDetailOut, OrderIn, OrderOut, OrderWithInvoiceIn, OrderWithInvoiceOut
-from app.schemas.orders.order_summary import OrderSummaryOut
+from app.schemas.orders.order_summary import GetOrdersFilterIn, OrderSummaryOut
 from app.utils.order_util import generate_order_id
 from core.sanitize import stringify_object_ids
 
@@ -12,38 +12,63 @@ router = APIRouter()
 orders_collection = db["orders"]
 customers_collection = db["customers"]
 invoices_collection = db["invoices"]
+@router.post("/search", response_model=dict)
+async def get_orders(filters: GetOrdersFilterIn = Body(...)):
+    skip = (filters.page - 1) * filters.pageSize
 
-@router.get("/", response_model=List[OrderSummaryOut])
-async def get_all_orders():
+    # Build query dynamically with OR
+    query = {}
+
+    or_conditions = []
+    if filters.customerName:
+        or_conditions.append({
+            "customerName": {"$regex": filters.customerName, "$options": "i"}
+        })
+    if filters.orderCode:
+        or_conditions.append({
+            "orderCode": {"$regex": filters.orderCode, "$options": "i"}
+        })
+
+    if or_conditions:
+        query["$or"] = or_conditions
+
+    # Count total
+    total_orders = await orders_collection.count_documents(query)
+
     orders_summary = []
+    cursor = orders_collection.find(query).sort("createdAt", -1).skip(skip).limit(filters.pageSize)
 
-    async for order in orders_collection.find({}).sort("createdAt", -1):
+    async for order in cursor:
         customer = await customers_collection.find_one({"_id": ObjectId(order["customerId"])})
         if not customer:
             customer = {"name": order.get("customerName", "")}
 
-        # Get payment status from invoice (if available)
-        invoice = await invoices_collection.find({"orderIds": order["_id"]}).sort("createdAt", -1).to_list(length=1)
-
-        # Get the first (most recent) invoice
+        invoice = await invoices_collection.find({"orderIds": order["_id"]}) \
+                                           .sort("createdAt", -1) \
+                                           .to_list(length=1)
         invoice = invoice[0] if invoice else None
-
         payment_status = invoice.get("paymentStatus", "pending") if invoice else "pending"
 
-        summary = {
-            "id": str(order["_id"]),
-            "orderCode": order.get("orderCode", ""),
-            "customerName": customer.get("name", ""),
-            "createdAt": order.get("createdAt"),
-            "itemCount": len(order.get("items", [])),
-            "paymentStatus": payment_status,
-            "total": order.get("totalAmount", 0.0),
-            "orderStatus": order.get("orderStatus", "pending"),
-        }
+        orders_summary.append(
+            OrderSummaryOut(
+                id=str(order["_id"]),
+                orderCode=order.get("orderCode", ""),
+                customerName=customer.get("name", ""),
+                createdAt=order.get("createdAt"),
+                itemCount=len(order.get("items", [])),
+                paymentStatus=payment_status,
+                total=order.get("totalAmount", 0.0),
+                orderStatus=order.get("orderStatus", "pending"),
+            )
+        )
 
-        orders_summary.append(summary)
-
-    return orders_summary
+    return {
+        "total": total_orders,
+        "page": filters.page,
+        "pageSize": filters.pageSize,
+        "pages": ceil(total_orders / filters.pageSize) if total_orders > 0 else 1,
+        "items": orders_summary
+    }
 
 @router.get("/{order_id}", response_model=OrderDetailOut)
 async def get_order_details(order_id: str):
