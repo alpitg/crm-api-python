@@ -12,13 +12,16 @@ router = APIRouter()
 orders_collection = db["orders"]
 customers_collection = db["customers"]
 invoices_collection = db["invoices"]
+from math import ceil
+from fastapi import Body
+from bson import ObjectId
+
 @router.post("/search", response_model=dict)
 async def get_orders(filters: GetOrdersFilterIn = Body(...)):
     skip = (filters.page - 1) * filters.pageSize
 
-    # Build query dynamically with OR
+    # Build query dynamically
     query = {}
-
     or_conditions = []
     if filters.customerName:
         or_conditions.append({
@@ -28,15 +31,23 @@ async def get_orders(filters: GetOrdersFilterIn = Body(...)):
         or_conditions.append({
             "orderCode": {"$regex": filters.orderCode, "$options": "i"}
         })
-
     if or_conditions:
         query["$or"] = or_conditions
+
+    # Determine sort order
+    sort_order = -1 if filters.sort == "newest" else 1  # newest = descending, oldest = ascending
 
     # Count total
     total_orders = await orders_collection.count_documents(query)
 
     orders_summary = []
-    cursor = orders_collection.find(query).sort("createdAt", -1).skip(skip).limit(filters.pageSize)
+    cursor = (
+        orders_collection
+        .find(query)
+        .sort("createdAt", sort_order)
+        .skip(skip)
+        .limit(filters.pageSize)
+    )
 
     async for order in cursor:
         customer = await customers_collection.find_one({"_id": ObjectId(order["customerId"])})
@@ -69,6 +80,7 @@ async def get_orders(filters: GetOrdersFilterIn = Body(...)):
         "pages": ceil(total_orders / filters.pageSize) if total_orders > 0 else 1,
         "items": orders_summary
     }
+
 
 @router.get("/{order_id}", response_model=OrderDetailOut)
 async def get_order_details(order_id: str):
