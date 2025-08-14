@@ -32,6 +32,7 @@ async def get_all_orders():
 
         summary = {
             "id": str(order["_id"]),
+            "orderCode": order.get("orderCode", ""),
             "customerName": customer.get("name", ""),
             "createdAt": order.get("createdAt"),
             "itemCount": len(order.get("items", [])),

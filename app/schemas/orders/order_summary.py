@@ -4,6 +4,7 @@ from datetime import datetime
 
 class OrderSummaryOut(BaseModel):
     id: str
+    orderCode: str
     customerName: str
     createdAt: Optional[datetime]
     itemCount: int
