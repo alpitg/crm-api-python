@@ -81,7 +81,6 @@ async def get_orders(filters: GetOrdersFilterIn = Body(...)):
         "items": orders_summary
     }
 
-
 @router.get("/{order_id}", response_model=OrderDetailOut)
 async def get_order_details(order_id: str):
     # 1. Validate order_id format
@@ -127,7 +126,6 @@ async def place_order(payload: OrderWithInvoiceIn):
     order = payload.order
     invoice_data = payload.invoice
 
-    order.orderCode = generate_order_id()
     order.customerId = ObjectId(order.customerId) if order.customerId and ObjectId.is_valid(order.customerId) else None
 
     # --- Step 1: Calculate order financials ---
@@ -156,6 +154,7 @@ async def place_order(payload: OrderWithInvoiceIn):
     now = datetime.now(timezone.utc)
     order_doc = order.model_dump()
     order_doc.update({
+        "orderCode": generate_order_id(),
         "subtotal": subtotal,
         "totalDiscountAmount": total_discount,
         "totalAmount": total_amount,
@@ -216,6 +215,7 @@ async def place_order(payload: OrderWithInvoiceIn):
 
 @router.put("/{order_id}")
 async def update_order(order_id: str, payload: OrderWithInvoiceIn):
+    
     existing_order = await orders_collection.find_one({"_id": ObjectId(order_id)})
     if not existing_order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -245,6 +245,7 @@ async def update_order(order_id: str, payload: OrderWithInvoiceIn):
     # --- Step 2: Prepare order update doc ---
     order_doc = order.model_dump()
     order_doc.update({
+        "orderCode": existing_order.get("orderCode", ""),
         "subtotal": subtotal,
         "totalDiscountAmount": total_discount,
         "totalAmount": total_amount,
@@ -267,6 +268,7 @@ async def update_order(order_id: str, payload: OrderWithInvoiceIn):
                 await invoices_collection.update_one(
                     {"_id": ObjectId(existing_order["invoiceId"])},
                     {"$set": {
+                        "paymentMode": invoice_data.paymentMode,
                         "totalAmount": total_amount,
                         "advancePaid": invoice_data.advancePaid,
                         "balanceAmount": total_amount - invoice_data.advancePaid,
