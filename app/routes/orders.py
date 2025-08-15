@@ -268,6 +268,7 @@ async def update_order(order_id: str, payload: OrderWithInvoiceIn):
                 await invoices_collection.update_one(
                     {"_id": ObjectId(existing_order["invoiceId"])},
                     {"$set": {
+                        "billTo": invoice_data.billTo,
                         "paymentMode": invoice_data.paymentMode,
                         "totalAmount": total_amount,
                         "advancePaid": invoice_data.advancePaid,
