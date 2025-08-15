@@ -73,7 +73,6 @@ class OrderIn(BaseModel):
 
 # ---------- Output ----------
 class OrderOut(OrderIn):
-    id: str
     subtotal: Optional[float] = 0.0
     totalDiscountAmount: Optional[float] = 0.0
     totalAmount: Optional[float] = 0.0

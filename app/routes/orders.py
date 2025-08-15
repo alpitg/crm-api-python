@@ -214,4 +214,88 @@ async def place_order(payload: OrderWithInvoiceIn):
 
     return response
 
+@router.put("/{order_id}")
+async def update_order(order_id: str, payload: OrderWithInvoiceIn):
+    existing_order = await orders_collection.find_one({"_id": ObjectId(order_id)})
+    if not existing_order:
+        raise HTTPException(status_code=404, detail="Order not found")
 
+    order = payload.order
+    invoice_data = payload.invoice
+
+    # --- Step 1: Recalculate financials ---
+    subtotal = 0.0
+    total_discount = order.discountAmount
+    cancelled_amount = 0.0
+
+    for item in order.items:
+        line_total = item.unitPrice * item.quantity
+        subtotal += line_total
+
+        if item.discountAmount:
+            total_discount += item.discountAmount
+        if item.discountedQuantity:
+            total_discount += item.unitPrice * item.discountedQuantity
+        if item.cancelledQty:
+            cancelled_amount += item.unitPrice * item.cancelledQty
+
+    misc_total = sum(charge.amount for charge in order.miscCharges)
+    total_amount = (subtotal - total_discount - cancelled_amount) + misc_total
+
+    # --- Step 2: Prepare order update doc ---
+    order_doc = order.model_dump()
+    order_doc.update({
+        "subtotal": subtotal,
+        "totalDiscountAmount": total_discount,
+        "totalAmount": total_amount,
+        "cancelledAmount": cancelled_amount,
+        "updatedAt": datetime.now(timezone.utc),
+    })
+
+    # --- Step 3: Update the order in DB ---
+    await orders_collection.update_one(
+        {"_id": ObjectId(order_id)},
+        {"$set": order_doc}
+    )
+
+    # --- Step 4: Handle Invoice Logic ---
+    created_invoice = None
+    if invoice_data:
+        if invoice_data.generateInvoice:
+            # If invoice exists, update it; else create new
+            if existing_order.get("invoiceId"):
+                await invoices_collection.update_one(
+                    {"_id": ObjectId(existing_order["invoiceId"])},
+                    {"$set": {
+                        "totalAmount": total_amount,
+                        "advancePaid": invoice_data.advancePaid,
+                        "balanceAmount": total_amount - invoice_data.advancePaid,
+                        "updatedAt": datetime.now(timezone.utc)
+                    }}
+                )
+            else:
+                invoice_doc = invoice_data.model_dump()
+                invoice_doc.update({
+                    "orderIds": [ObjectId(order_id)],
+                    "totalAmount": total_amount,
+                    "advancePaid": invoice_data.advancePaid,
+                    "balanceAmount": total_amount - invoice_data.advancePaid,
+                    "createdAt": datetime.now(timezone.utc)
+                })
+
+                invoice_result = await invoices_collection.insert_one(invoice_doc)
+                if not invoice_result.inserted_id:
+                    raise HTTPException(status_code=500, detail="Failed to create invoice")
+                await orders_collection.update_one(
+                    {"_id": ObjectId(order_id)},
+                    {"$set": {"invoiceId": str(invoice_result.inserted_id)}}
+                )
+                created_invoice = {
+                    "_id": str(invoice_result.inserted_id),
+                    **invoice_doc
+                }
+
+    # --- Step 5: Prepare Response ---
+    updated_order = await orders_collection.find_one({"_id": ObjectId(order_id)})
+    
+    return True
