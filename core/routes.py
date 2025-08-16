@@ -1,7 +1,8 @@
 
 from fastapi import FastAPI
 
-from app.routes import customer, orders, products, user
+from app.routes import customer, orders, ping, user
+from app.routes.catalog import products
 from app.routes.master import frame_types, glass_types, misc_charges, mount_types, order_status
 
 def setup_router(app: FastAPI) -> None:
@@ -9,6 +10,17 @@ def setup_router(app: FastAPI) -> None:
     Register all routes with the FastAPI application.
     """
     app.include_router(user.router, prefix="/api")
+    app.include_router(ping.router, prefix="/api/ping")
+
+    app.include_router(customer.router, prefix="/api/customer", tags=["Customer"])
+    app.include_router(orders.router, prefix="/api/orders", tags=["Orders"])
+
+    #region Catalog
+    # Product
+    app.include_router(products.router, prefix="/api/products", tags=["Products"])
+
+    #endregion
+
 
     # region master routes
     app.include_router(frame_types.router, prefix="/api/master/frame_types", tags=["Master - Frame Types"])
@@ -17,9 +29,3 @@ def setup_router(app: FastAPI) -> None:
     app.include_router(mount_types.router, prefix="/api/master/mount_types", tags=["Master - Mount Types"])
     app.include_router(order_status.router, prefix="/api/master/order_status", tags=["Master - Order Status"])
     # endregion
-
-    app.include_router(customer.router, prefix="/api/customer", tags=["Customer"])
-    app.include_router(orders.router, prefix="/api/orders", tags=["Orders"])
-    app.include_router(products.router, prefix="/api/products", tags=["Products"])
-
-

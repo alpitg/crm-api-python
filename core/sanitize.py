@@ -20,7 +20,12 @@ def sanitize_input(data: dict) -> dict:
 
 def stringify_object_ids(obj):
     if isinstance(obj, dict):
-        return {k: stringify_object_ids(v) for k, v in obj.items()}
+        new_obj = {}
+        for k, v in obj.items():
+            # Convert `_id` to `id`
+            key = "id" if k == "_id" else k
+            new_obj[key] = stringify_object_ids(v)
+        return new_obj
     elif isinstance(obj, list):
         return [stringify_object_ids(i) for i in obj]
     elif isinstance(obj, ObjectId):

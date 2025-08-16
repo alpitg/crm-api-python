@@ -6,7 +6,8 @@ app = FastAPI(
     title="Art Show CRM API",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    swagger_ui_parameters={"docExpansion": "none"}
 )
 
 # load_dotenv()

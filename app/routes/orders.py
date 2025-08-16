@@ -1,20 +1,20 @@
 from math import ceil
-from fastapi import APIRouter, Body, HTTPException, Query, status
+from fastapi import APIRouter, Body, HTTPException, status
 from bson import ObjectId
 from datetime import datetime, timezone
 from app.db.mongo import db
 from app.schemas.orders.orders import OrderDetailOut, OrderIn, OrderOut, OrderWithInvoiceIn, OrderWithInvoiceOut
 from app.schemas.orders.order_summary import GetOrdersFilterIn, OrderSummaryOut
-from app.utils.order_util import generate_order_id
+from math import ceil
+from fastapi import Body
+from bson import ObjectId
+from app.utils.generate_unique_id_util import generate_order_code
 from core.sanitize import stringify_object_ids
 
 router = APIRouter()
 orders_collection = db["orders"]
 customers_collection = db["customers"]
 invoices_collection = db["invoices"]
-from math import ceil
-from fastapi import Body
-from bson import ObjectId
 
 @router.post("/search", response_model=dict)
 async def get_orders(filters: GetOrdersFilterIn = Body(...)):
@@ -104,7 +104,6 @@ async def get_order_details(order_id: str):
         invoice_doc = await db.invoices.find_one({"_id": ObjectId(order_doc["invoiceId"])})
         if invoice_doc:
             invoice_out = stringify_object_ids(invoice_doc)
-            invoice_out["id"] = invoice_out.pop("_id")
 
     # 5. Return combined response
     return OrderDetailOut(order=order_in, invoice=invoice_out)
@@ -154,7 +153,7 @@ async def place_order(payload: OrderWithInvoiceIn):
     now = datetime.now(timezone.utc)
     order_doc = order.model_dump()
     order_doc.update({
-        "orderCode": generate_order_id(),
+        "orderCode": generate_order_code(),
         "subtotal": subtotal,
         "totalDiscountAmount": total_discount,
         "totalAmount": total_amount,
