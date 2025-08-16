@@ -36,7 +36,7 @@ class Shipping(BaseModel):
     isPhysical: bool = True
     weightInKg: Optional[float] = Field(default=None, ge=0)
     lengthInCm: Optional[float] = Field(default=None, ge=0)
-    widthIncm: Optional[float] = Field(default=None, ge=0)
+    widthInCm: Optional[float] = Field(default=None, ge=0)
     heightInCm: Optional[float] = Field(default=None, ge=0)
 
 class Meta(BaseModel):
