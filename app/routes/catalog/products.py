@@ -80,8 +80,8 @@ async def get_product(id: str):
 async def create_product(payload: ProductIn):
     data = payload.model_dump()
     data["code"] = generate_product_code()
-    data["created_at"] = datetime.now(timezone.utc)
-    data["updated_at"] = datetime.now(timezone.utc)
+    data["createdAt"] = datetime.now(timezone.utc)
+    data["updatedAt"] = datetime.now(timezone.utc)
     result = await collection.insert_one(data)
     if not result.inserted_id:
         raise HTTPException(status_code=500, detail="Failed to insert order")

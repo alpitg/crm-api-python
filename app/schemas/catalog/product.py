@@ -15,37 +15,37 @@ class MediaItem(BaseModel):
     alt: Optional[str] = None
 
 class Price(BaseModel):
-    base_price: float = Field(ge=0)
-    discount_type: DiscountType = "none"
-    discount_percentage: Optional[float] = Field(default=None, ge=0, le=100)
-    fixed_discounted_price: Optional[float] = Field(default=None, ge=0)
-    tax_class: TaxClass = "taxable_goods"
-    vat_percent: Optional[float] = Field(default=None, ge=0, le=100)
+    basePrice: Optional[float] = Field(ge=0)
+    discountType: Optional[DiscountType] = "none"
+    discountPercentage: Optional[float] = Field(default=None, ge=0, le=100)
+    fixedDiscountedPrice: Optional[float] = Field(default=None, ge=0)
+    taxClass: Optional[TaxClass] = "tax_free"
+    vatPercent: Optional[float] = Field(default=None, ge=0, le=100)
 
 class Inventory(BaseModel):
     sku: Optional[str] = None
     barcode: Optional[str] = None
-    quantity: int = Field(default=0, ge=0)
-    allow_backorders: bool = False
+    quantity: Optional[int] = Field(default=0, ge=0)
+    allowBackorders: bool = False
 
 class Variation(BaseModel):
     name: Literal["color", "size", "material", "style"]
     values: List[str] = Field(default_factory=list)
 
 class Shipping(BaseModel):
-    is_physical: bool = True
-    weight_kg: Optional[float] = Field(default=None, ge=0)
-    length_cm: Optional[float] = Field(default=None, ge=0)
-    width_cm: Optional[float] = Field(default=None, ge=0)
-    height_cm: Optional[float] = Field(default=None, ge=0)
+    isPhysical: bool = True
+    weightInKg: Optional[float] = Field(default=None, ge=0)
+    lengthInCm: Optional[float] = Field(default=None, ge=0)
+    widthIncm: Optional[float] = Field(default=None, ge=0)
+    heightInCm: Optional[float] = Field(default=None, ge=0)
 
 class Meta(BaseModel):
-    meta_title: Optional[str] = None
-    meta_description: Optional[str] = None
-    meta_keywords: List[str] = Field(default_factory=list, description="Comma-split on the FE")
+    metaTitle: Optional[str] = None
+    metaDescription: Optional[str] = None
+    metaKeywords: List[str] = Field(default_factory=list, description="Comma-split on the FE")
 
 class Scheduling(BaseModel):
-    publish_at: Optional[datetime] = None
+    publishAt: Optional[datetime] = None
 
 # -------- Primary models --------
 class ProductBase(BaseModel):
@@ -57,7 +57,7 @@ class ProductBase(BaseModel):
     categories: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
     media: List[MediaItem] = Field(default_factory=list)
-    price: Price
+    price: Optional[Price] = None
     totalWishlistedCount: Optional[float] = None
     inventory: Inventory = Inventory()
     variations: List[Variation] = Field(default_factory=list)
@@ -85,13 +85,13 @@ class ProductUpdate(BaseModel):
 
 class ProductOut(ProductBase):
     id: str
-    created_at: datetime
-    updated_at: datetime
+    createdAt: datetime
+    updatedAt: datetime
 
     @staticmethod
     def from_in(id: str, data: ProductIn) -> "ProductOut":
         now = datetime.now(timezone.utc)
-        return ProductOut(id=id, created_at=now, updated_at=now, **data.model_dump())
+        return ProductOut(id=id, createdAt=now, updatedAt=now, **data.model_dump())
     
 class PaginatedProductsOut(BaseModel):
     total: int
