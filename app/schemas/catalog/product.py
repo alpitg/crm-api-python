@@ -25,8 +25,14 @@ class Price(BaseModel):
 class Inventory(BaseModel):
     sku: Optional[str] = None
     barcode: Optional[str] = None
-    quantity: Optional[int] = Field(default=0, ge=0)
+    quantityInShelf: Optional[int] = Field(default=0, ge=0)
+    quantityInWarehouse: Optional[int] = Field(default=0, ge=0)
+    quantity: Optional[int] = Field(default=0, ge=0)  # will be set in __init__
     allowBackorders: bool = False
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        object.__setattr__(self, 'quantity', (self.quantityInShelf or 0) + (self.quantityInWarehouse or 0))
 
 class Variation(BaseModel):
     name: Literal["color", "size", "material", "style"]
@@ -52,8 +58,8 @@ class ProductBase(BaseModel):
     name: str
     code: Optional[str] = None
     description: Optional[str] = None
-    status: ProductStatus = "draft"
-    template: ProductTemplate = "default"
+    status: Optional[ProductStatus] = "draft"
+    template: Optional[ProductTemplate] = "default"
     categories: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
     media: List[MediaItem] = Field(default_factory=list)
