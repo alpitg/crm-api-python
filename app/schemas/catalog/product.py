@@ -70,6 +70,7 @@ class ProductBase(BaseModel):
     shipping: Shipping = Shipping()
     meta: Meta = Meta()
     scheduling: Scheduling = Scheduling()
+    rating: Optional[int] = None
 
 class ProductIn(ProductBase):
     pass
