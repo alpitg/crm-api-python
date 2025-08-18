@@ -1,10 +1,10 @@
 from math import ceil
 from bson import ObjectId
-from fastapi import APIRouter, Body, HTTPException, Query
-from uuid import uuid4
+from fastapi import APIRouter, Body, HTTPException
 from datetime import datetime, timezone
 from app.db.mongo import db
 from app.schemas.customer import CustomerIn, CustomerOut, GetCustomersParams, PaginatedCustomers
+from core.sanitize import stringify_object_ids
 
 router = APIRouter()
 collection = db["customers"]
@@ -71,7 +71,6 @@ async def get_customer(id: str):
 async def create_customer(payload: CustomerIn):
     now = datetime.now(timezone.utc)
     customer = {
-        "id": str(uuid4()),
         "name": payload.name,
         "email": payload.email,
         "description": payload.description,
@@ -83,7 +82,7 @@ async def create_customer(payload: CustomerIn):
         "updatedAt": now,
     }
     await collection.insert_one(customer)
-    return customer
+    return stringify_object_ids(customer)
 
 @router.put("/{customer_id}", response_model=CustomerOut)
 async def update_customer(customer_id: str, payload: CustomerIn):

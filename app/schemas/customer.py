@@ -28,7 +28,7 @@ class CustomerIn(BaseModel):
 
 
 class CustomerOut(CustomerIn):
-    id: str
+    id: Optional[str] = None
     createdAt: Optional[datetime] = None
     updatedAt: Optional[datetime] = None
 
