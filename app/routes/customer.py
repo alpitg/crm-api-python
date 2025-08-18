@@ -84,9 +84,9 @@ async def create_customer(payload: CustomerIn):
     await collection.insert_one(customer)
     return stringify_object_ids(customer)
 
-@router.put("/{customer_id}", response_model=CustomerOut)
-async def update_customer(customer_id: str, payload: CustomerIn):
-    customer = await collection.find_one({"id": customer_id})
+@router.put("/{id}", response_model=CustomerOut)
+async def update_customer(id: str, payload: CustomerIn):
+    customer = await collection.find_one({"_id": ObjectId(id)})
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -95,9 +95,9 @@ async def update_customer(customer_id: str, payload: CustomerIn):
         "updatedAt": datetime.now(timezone.utc)
     }
 
-    await collection.update_one({"id": customer_id}, {"$set": updated_data})
-    updated_customer = await collection.find_one({"id": customer_id})
-    return updated_customer
+    await collection.update_one({"_id": ObjectId(id)}, {"$set": updated_data})
+    updated_customer = await collection.find_one({"_id": ObjectId(id)})
+    return stringify_object_ids(updated_customer)
 
 @router.delete("/{customer_id}")
 async def delete_customer(customer_id: str):
