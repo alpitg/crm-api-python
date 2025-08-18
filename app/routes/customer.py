@@ -1,4 +1,5 @@
 from math import ceil
+from bson import ObjectId
 from fastapi import APIRouter, Body, HTTPException, Query
 from uuid import uuid4
 from datetime import datetime, timezone
@@ -59,9 +60,9 @@ async def search_customers(filters: GetCustomersParams = Body(...)):
         "items": customers_summary
     }
 
-@router.get("/{customer_id}", response_model=CustomerOut)
-async def get_customer(customer_id: str):
-    customer = await collection.find_one({"id": customer_id})
+@router.get("/{id}", response_model=CustomerOut)
+async def get_customer(id: str):
+    customer = await collection.find_one({"_id": ObjectId(id)})
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     return customer
