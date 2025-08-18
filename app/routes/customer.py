@@ -19,8 +19,9 @@ async def search_customers(filters: GetCustomersParams = Body(...)):
     if filters.status:
         query["isActive"] = filters.status.lower() == "active"
 
-    # Determine sort order (default = newest/desc)
-    sort_order = -1 if filters.sort == "desc" else 1
+    # Determine sort order
+    sort_order = -1 if filters.sort == "newest" else 1  # newest = descending, oldest = ascending
+
 
     # Count total
     total_customers = await collection.count_documents(query)
