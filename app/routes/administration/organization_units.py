@@ -36,8 +36,8 @@ async def list_organisation_units(filters: GetOrganisationUnitsFilterIn = Body(.
         if filters.searchText:
             ql = filters.searchText.lower()
             if not (
-                (ql in doc.get("displayName", "").lower())
-                or (ql in doc.get("code", "").lower())
+                (ql in (doc.get("displayName") or "").lower())
+                or (ql in (doc.get("code") or "").lower())
             ):
                 continue
 
