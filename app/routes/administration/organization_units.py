@@ -11,7 +11,7 @@ router = APIRouter()
 collection = db["organisation_units"]
 
 
-# ✅ Get All Organisation Units ----------
+# ✅ Get All Organisation Units with pagination ----------
 @router.post("/search", response_model=PaginatedOrganisationUnitsOut)
 async def list_organisation_units(filters: GetOrganisationUnitsFilterIn = Body(...)):
     query = {}
@@ -48,6 +48,23 @@ async def list_organisation_units(filters: GetOrganisationUnitsFilterIn = Body(.
         "page": filters.page,
         "pageSize": filters.pageSize,
         "pages": ceil(total / filters.pageSize) if total > 0 else 1,
+        "items": organisation_units,
+    }
+
+# ✅ Get All Organisation Units ----------
+@router.get("/", response_model=PaginatedOrganisationUnitsOut)
+async def list_organisation_units():
+
+    cursor = collection.find({})
+    organisation_units = []
+    async for doc in cursor:
+        organisation_units.append(stringify_object_ids(doc))
+
+    return {
+        "total": 0,
+        "page": 0,
+        "pageSize": 0,
+        "pages": ceil(0 / 0) if 0 > 0 else 1,
         "items": organisation_units,
     }
 
