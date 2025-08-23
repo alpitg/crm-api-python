@@ -113,6 +113,9 @@ async def create_role(payload: RoleWithPermissions):
 
     role_data["id"] = str(result.inserted_id)
 
+    # ✅ ensure only one default role
+    await ensure_single_default_role(role_data["id"], role_data.get("isDefault", False))
+
     # attach granted permissions
     role_with_permissions = RoleWithPermissions(
         role=RoleOut(**stringify_object_ids(role_data)),
@@ -142,6 +145,10 @@ async def update_role(id: str, payload: RoleWithPermissions):
 
     updated = await collection.find_one({"_id": ObjectId(id)})
     updated["id"] = str(updated["_id"])
+
+    # ✅ ensure only one default role
+    await ensure_single_default_role(id, role_data.get("isDefault", False))
+
     return RoleOut(**stringify_object_ids(updated))
 
 # ✅ Delete Role ----------
@@ -166,3 +173,16 @@ async def delete_role(id: str):
 
     result["id"] = str(result["_id"])
     return RoleOut(**stringify_object_ids(result))
+
+
+async def ensure_single_default_role(role_id: str, is_default: bool):
+    """
+    Ensure only one role has isDefault=True.
+    If current role is default, set all others to False.
+    """
+    if is_default:
+        # Set all roles' isDefault=False except the current one
+        await collection.update_many(
+            {"_id": {"$ne": ObjectId(role_id)}},
+            {"$set": {"isDefault": False}}
+        )

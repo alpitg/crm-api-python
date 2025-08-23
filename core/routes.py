@@ -16,7 +16,7 @@ def setup_router(app: FastAPI) -> None:
     #region Administration
     app.include_router(organization_units.router, prefix="/api/organization-units", tags=["Organization Units"])
     app.include_router(roles.router, prefix="/api/roles", tags=["Roles"])
-    app.include_router(role_permissions.router, prefix="/api/roles/permissions", tags=["Roles-permissions"])
+    app.include_router(role_permissions.router, prefix="/api/roles-permissions", tags=["Roles-permissions"])
     # app.include_router(users.router, prefix="/api/users", tags=["Users"])
     #endregion
 
