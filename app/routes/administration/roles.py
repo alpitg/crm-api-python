@@ -6,10 +6,10 @@ from app.schemas.administration.roles.roles import (
     RoleIn,
     RoleOut,
     PaginatedRolesOut,
+    RoleWithPermissions,
 )
 from core.sanitize import stringify_object_ids
 from app.db.mongo import db
-
 
 router = APIRouter()
 collection = db["roles"]
@@ -72,19 +72,30 @@ async def list_roles_all():
         "items": roles,
     }
 
+# ✅ Create new Role with Permissions ----------
+@router.post("/", response_model=RoleWithPermissions, status_code=201)
+async def create_role(payload: RoleWithPermissions):
+    role_data = payload.role.model_dump()
+    role_data["name"] = role_data.get("displayName", None)
+    role_data["creationTime"] = datetime.now(timezone.utc)
+    role_data["lastModificationTime"] = None
+    role_data["lastModifierUserId"] = None
+    role_data["isDeleted"] = False
 
-# ✅ Create new Role ----------
-@router.post("/", response_model=RoleOut, status_code=201)
-async def create_role(payload: RoleIn):
-    data = payload.model_dump()
-    data["creationTime"] = datetime.now(timezone.utc)
-    data["lastModificationTime"] = None
-    data["lastModifierUserId"] = None
-    data["isDeleted"] = False
+    # store permissions along with role
+    role_data["grantedPermissionNames"] = payload.grantedPermissionNames
 
-    result = await collection.insert_one(data)
+    # insert role
+    result = await collection.insert_one(role_data)
     if not result.inserted_id:
         raise HTTPException(status_code=500, detail="Failed to create role")
 
-    data["id"] = str(result.inserted_id)
-    return RoleOut(**stringify_object_ids(data))
+    role_data["id"] = str(result.inserted_id)
+
+    # attach granted permissions
+    role_with_permissions = RoleWithPermissions(
+        role=RoleOut(**stringify_object_ids(role_data)),
+        grantedPermissionNames=payload.grantedPermissionNames
+    )
+
+    return role_with_permissions

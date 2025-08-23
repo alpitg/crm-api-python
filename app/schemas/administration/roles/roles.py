@@ -13,7 +13,7 @@ class GetRolesFilterIn(BaseModel):
 
 # ---------- Base Input ----------
 class RoleIn(BaseModel):
-    name: str
+    name: Optional[str] = None
     displayName: str
     description: Optional[str] = None
     code: Optional[str] = None
@@ -31,6 +31,9 @@ class RoleOut(RoleIn):
     lastModifierUserId: Optional[int] = None
     isDeleted: Optional[bool] = False
 
+class RoleWithPermissions(BaseModel):
+    role: RoleIn
+    grantedPermissionNames: List[str]
 
 # ---------- Paginated ----------
 class PaginatedRolesOut(BaseModel):
