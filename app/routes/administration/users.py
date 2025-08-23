@@ -73,31 +73,33 @@ async def get_user(id: str):
 
     return stringify_object_ids(user)
 
-
 # ✅ Create User ----------
 @router.post("/", response_model=UserWithPermissions)
 async def create_user(user_with_permissions: UserWithPermissions = Body(...)):
-    new_user_doc = user_with_permissions.user.model_dump()
-    new_user_doc["creationTime"] = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+
+    # prepare new user document without `id`
+    new_user_doc = user_with_permissions.user.model_dump(exclude={"id"})
+    new_user_doc["creationTime"] = now
     new_user_doc["lastModificationTime"] = None
     new_user_doc["lastModifierUserId"] = None
     new_user_doc["isDeleted"] = False
 
+    # insert into MongoDB
     result = await collection.insert_one(new_user_doc)
-    new_user_doc["_id"] = result.inserted_id
 
+    # add generated _id as id in response only
+    new_user_doc["id"] = str(result.inserted_id)
 
-    # attach granted permissions
-    user_with_permissions = UserWithPermissions(
-        user=UserOut(**stringify_object_ids(new_user_doc)),
+    # build response
+    return UserWithPermissions(
+        user=UserOut(**new_user_doc),
         roles=user_with_permissions.roles,
         memberedOrganizationUnits=user_with_permissions.memberedOrganizationUnits,
         allOrganizationUnits=user_with_permissions.allOrganizationUnits,
-        grantedPermissionNames= None,
-        permissions= None
+        grantedPermissionNames=None,
+        permissions=None,
     )
-
-    return user_with_permissions
 
 
 # ✅ Update User ----------
