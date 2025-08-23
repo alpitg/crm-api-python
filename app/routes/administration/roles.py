@@ -77,6 +77,7 @@ async def list_roles_all():
 async def create_role(payload: RoleWithPermissions):
     role_data = payload.role.model_dump()
     role_data["name"] = role_data.get("displayName", None)
+    role_data["isActive"] = True
     role_data["creationTime"] = datetime.now(timezone.utc)
     role_data["lastModificationTime"] = None
     role_data["lastModifierUserId"] = None
