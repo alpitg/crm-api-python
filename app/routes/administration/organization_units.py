@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Body, HTTPException
 from math import ceil
-from app.schemas.administration.organizationUnits.organization_units import GetOrganisationUnitsFilterIn, OrganisationUnitIn, OrganisationUnitOut, PaginatedOrganisationUnitsOut
+from app.schemas.administration.organization_units.organization_units import GetOrganisationUnitsFilterIn, OrganisationUnitIn, OrganisationUnitOut, PaginatedOrganisationUnitsOut
 from core.sanitize import stringify_object_ids
 from app.db.mongo import db
 
