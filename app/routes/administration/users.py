@@ -1,12 +1,10 @@
 from datetime import datetime, timezone
-from typing import List, Optional
 from bson import ObjectId
 from fastapi import APIRouter, Body, HTTPException
 from math import ceil
 
 from app.schemas.administration.users.users import (
     GetUsersFilterIn,
-    UserIn,
     UserOut,
     PaginatedUsersOut,
     UserPermission,
@@ -79,16 +77,27 @@ async def get_user(id: str):
 # ✅ Create User ----------
 @router.post("/", response_model=UserWithPermissions)
 async def create_user(user_with_permissions: UserWithPermissions = Body(...)):
-    now = datetime.now(timezone.utc)
-
-    new_user_doc = user_with_permissions.dict()
-    new_user_doc["user"]["creationTime"] = now
-    new_user_doc["user"]["isDeleted"] = False
+    new_user_doc = user_with_permissions.user.model_dump()
+    new_user_doc["creationTime"] = datetime.now(timezone.utc)
+    new_user_doc["lastModificationTime"] = None
+    new_user_doc["lastModifierUserId"] = None
+    new_user_doc["isDeleted"] = False
 
     result = await collection.insert_one(new_user_doc)
     new_user_doc["_id"] = result.inserted_id
 
-    return stringify_object_ids(new_user_doc)
+
+    # attach granted permissions
+    user_with_permissions = UserWithPermissions(
+        user=UserOut(**stringify_object_ids(new_user_doc)),
+        roles=user_with_permissions.roles,
+        memberedOrganizationUnits=user_with_permissions.memberedOrganizationUnits,
+        allOrganizationUnits=user_with_permissions.allOrganizationUnits,
+        grantedPermissionNames= None,
+        permissions= None
+    )
+
+    return user_with_permissions
 
 
 # ✅ Update User ----------
@@ -97,11 +106,11 @@ async def update_user(id: str, user_with_permissions: UserWithPermissions = Body
     if not ObjectId.is_valid(id):
         raise HTTPException(status_code=400, detail="Invalid user ID")
 
-    update_data = user_with_permissions.dict(exclude_unset=True)
-    update_data["user"]["lastModificationTime"] = datetime.now(timezone.utc)
+    update_data = user_with_permissions.user.model_dump(exclude_unset=True)
+    update_data["lastModificationTime"] = datetime.now(timezone.utc)
 
     result = await collection.find_one_and_update(
-        {"_id": ObjectId(id), "user.isDeleted": {"$ne": True}},
+        {"_id": ObjectId(id), "isDeleted": {"$ne": True}},
         {"$set": update_data},
         return_document=True,
     )
@@ -109,7 +118,17 @@ async def update_user(id: str, user_with_permissions: UserWithPermissions = Body
     if not result:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return stringify_object_ids(result)
+    # attach granted permissions
+    user_with_permissions = UserWithPermissions(
+        user=UserOut(**stringify_object_ids(update_data)),
+        roles=user_with_permissions.roles,
+        memberedOrganizationUnits=user_with_permissions.memberedOrganizationUnits,
+        allOrganizationUnits=user_with_permissions.allOrganizationUnits,
+        grantedPermissionNames= None,
+        permissions= None
+    )
+
+    return user_with_permissions
 
 
 # ✅ Soft Delete User ----------
@@ -147,7 +166,7 @@ async def update_user_permissions(id: str, payload: UserPermission = Body(...)):
     }
 
     result = await collection.find_one_and_update(
-        {"_id": ObjectId(id), "user.isDeleted": {"$ne": True}},
+        {"_id": ObjectId(id), "isDeleted": {"$ne": True}},
         {"$set": update_data},
         return_document=True,
     )

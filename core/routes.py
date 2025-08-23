@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 
 from app.routes import customer, orders, ping, user
-from app.routes.administration import organization_units, role_permissions, roles
+from app.routes.administration import organization_units, role_permissions, roles, users
 from app.routes.catalog import products
 from app.routes.master import frame_types, glass_types, misc_charges, mount_types, order_status
 
@@ -17,7 +17,7 @@ def setup_router(app: FastAPI) -> None:
     app.include_router(organization_units.router, prefix="/api/organization-units", tags=["Organization Units"])
     app.include_router(roles.router, prefix="/api/roles", tags=["Roles"])
     app.include_router(role_permissions.router, prefix="/api/roles-permissions", tags=["Roles-permissions"])
-    # app.include_router(users.router, prefix="/api/users", tags=["Users"])
+    app.include_router(users.router, prefix="/api/users", tags=["Users"])
     #endregion
 
     #region Catalog

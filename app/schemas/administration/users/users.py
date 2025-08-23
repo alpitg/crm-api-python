@@ -3,19 +3,15 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 from app.schemas.administration.organization_units.organization_units import OrganisationUnitOut
-from app.schemas.administration.roles.roles import RoleOut
+from app.schemas.administration.roles.roles import RoleIn, RoleOut
 
 
-# ---------- Role ----------
-class RoleIn(BaseModel):
-    id: str
-    name: Optional[str] = None
-    displayName: Optional[str] = None
-    description: Optional[str] = None
-    isDefault: bool = False
-    isStatic: bool = False
-    isActive: bool = True
-    creationTime: Optional[datetime] = None
+# ---------- Filter ----------
+class GetUsersFilterIn(BaseModel):
+    page: int = 1
+    pageSize: int = 10
+    searchText: Optional[str] = None
+    sort: Optional[str] = "newest"  # newest | oldest
 
 
 # ---------- User ----------
