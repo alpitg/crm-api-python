@@ -19,7 +19,7 @@ class RoleIn(BaseModel):
     code: Optional[str] = None
     isDefault: bool = False
     isStatic: bool = False
-    iaActive: Optional[bool] = True
+    isActive: Optional[bool] = True
     creatorUserId: Optional[str] = None
 
 
