@@ -1,13 +1,16 @@
 from datetime import datetime, timezone
+from typing import List
 from bson import ObjectId
 from fastapi import APIRouter, Body, HTTPException
 from math import ceil
 from app.schemas.administration.roles.roles import (
     GetRolesFilterIn,
+    RoleIn,
     RoleOut,
     PaginatedRolesOut,
     RoleWithPermissions,
 )
+from app.utils.generate_unique_id_util import generate_role_code
 from core.sanitize import stringify_object_ids
 from app.db.mongo import db
 
@@ -56,7 +59,6 @@ async def list_roles(filters: GetRolesFilterIn = Body(...)):
         "items": roles,
     }
 
-
 # ✅ Get All Roles ----------
 @router.get("/", response_model=PaginatedRolesOut)
 async def list_roles_all():
@@ -97,6 +99,7 @@ async def get_role(id: str):
 async def create_role(payload: RoleWithPermissions):
     role_data = payload.role.model_dump()
     role_data["name"] = role_data.get("displayName", None)
+    role_data["code"] = generate_role_code(role_data["name"])
     role_data["isActive"] = True
     role_data["creationTime"] = datetime.now(timezone.utc)
     role_data["lastModificationTime"] = None
@@ -157,8 +160,18 @@ async def delete_role(id: str):
     if not ObjectId.is_valid(id):
         raise HTTPException(status_code=400, detail="Invalid role ID")
 
+    # First check if role exists
+    role = await collection.find_one({"_id": ObjectId(id)})
+    if not role or role.get("isDeleted"):
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    # 🚫 Prevent deletion of static roles
+    if role.get("isStatic", False):
+        raise HTTPException(status_code=400, detail="Static roles cannot be deleted")
+
+    # Soft delete (mark isDeleted=True)
     result = await collection.find_one_and_update(
-        {"_id": ObjectId(id), "isDeleted": {"$ne": True}},
+        {"_id": ObjectId(id)},
         {
             "$set": {
                 "isDeleted": True,
@@ -168,13 +181,57 @@ async def delete_role(id: str):
         return_document=True,
     )
 
-    if not result:
-        raise HTTPException(status_code=404, detail="Role not found")
-
     result["id"] = str(result["_id"])
     return RoleOut(**stringify_object_ids(result))
 
+@router.post("/seed-default-roles", response_model=List[RoleOut], status_code=201)
+async def seed_default_roles():
+    """
+    Ensure that Admin and User roles exist.
+    If missing, create them with isStatic=True.
+    """
+    required_roles = [
+        {"displayName": "Admin", "description": "Administrator role with full access", "code": "ADMIN"},
+        {"displayName": "User", "description": "Default user role with limited access", "code": "USER"},
+    ]
 
+    created_or_existing = []
+
+    for role_def in required_roles:
+        existing = await collection.find_one({"code": role_def["code"], "isDeleted": False})
+        
+        if existing:
+            # already exists
+            role_out = RoleOut(**stringify_object_ids(existing))
+            created_or_existing.append(role_out)
+        else:
+            # create new static role
+            role_data = RoleIn(
+                displayName=role_def["displayName"],
+                description=role_def["description"],
+                code=role_def["code"],
+                isStatic=True,
+                isActive=True
+            ).model_dump()
+
+            role_data["name"] = role_data["displayName"]
+            role_data["creationTime"] = datetime.now(timezone.utc)
+            role_data["lastModificationTime"] = None
+            role_data["lastModifierUserId"] = None
+            role_data["isDeleted"] = False
+
+            result = await collection.insert_one(role_data)
+            if not result.inserted_id:
+                raise HTTPException(status_code=500, detail=f"Failed to create role {role_def['displayName']}")
+
+            role_data["id"] = str(result.inserted_id)
+
+            created_or_existing.append(RoleOut(**stringify_object_ids(role_data)))
+
+    return created_or_existing
+
+
+# private method
 async def ensure_single_default_role(role_id: str, is_default: bool):
     """
     Ensure only one role has isDefault=True.
