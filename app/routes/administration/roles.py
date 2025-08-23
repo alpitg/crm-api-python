@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
+from bson import ObjectId
 from fastapi import APIRouter, Body, HTTPException
 from math import ceil
 from app.schemas.administration.roles.roles import (
     GetRolesFilterIn,
-    RoleIn,
     RoleOut,
     PaginatedRolesOut,
     RoleWithPermissions,
@@ -72,6 +72,23 @@ async def list_roles_all():
         "items": roles,
     }
 
+# ---------- Get Role by ID ----------
+@router.get("/{id}", response_model=RoleWithPermissions)
+async def get_role(id: str):
+    if not ObjectId.is_valid(id):
+        raise HTTPException(status_code=400, detail="Invalid role ID")
+
+    role = await collection.find_one({"_id": ObjectId(id), "isDeleted": False})
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    role["id"] = str(role["_id"])
+
+    return RoleWithPermissions(
+        role=RoleOut(**stringify_object_ids(role)),
+        grantedPermissionNames=role.get("grantedPermissionNames", [])
+    )
+
 # ✅ Create new Role with Permissions ----------
 @router.post("/", response_model=RoleWithPermissions, status_code=201)
 async def create_role(payload: RoleWithPermissions):
@@ -100,3 +117,49 @@ async def create_role(payload: RoleWithPermissions):
     )
 
     return role_with_permissions
+
+# ✅ Update Role with Permissions ----------
+@router.put("/{id}", response_model=RoleOut)
+async def update_role(id: str, payload: RoleWithPermissions):
+    if not ObjectId.is_valid(id):
+        raise HTTPException(status_code=400, detail="Invalid role ID")
+
+    # Extract role fields + permissions
+    role_data = payload.role.model_dump()
+    role_data["grantedPermissionNames"] = payload.grantedPermissionNames
+    role_data["lastModificationTime"] = datetime.now(timezone.utc)
+
+    result = await collection.update_one(
+        {"_id": ObjectId(id), "isDeleted": {"$ne": True}},
+        {"$set": role_data}
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    updated = await collection.find_one({"_id": ObjectId(id)})
+    updated["id"] = str(updated["_id"])
+    return RoleOut(**stringify_object_ids(updated))
+
+# ✅ Delete Role ----------
+@router.delete("/{id}", response_model=RoleOut)
+async def delete_role(id: str):
+    if not ObjectId.is_valid(id):
+        raise HTTPException(status_code=400, detail="Invalid role ID")
+
+    result = await collection.find_one_and_update(
+        {"_id": ObjectId(id), "isDeleted": {"$ne": True}},
+        {
+            "$set": {
+                "isDeleted": True,
+                "lastModificationTime": datetime.now(timezone.utc),
+            }
+        },
+        return_document=True,
+    )
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    result["id"] = str(result["_id"])
+    return RoleOut(**stringify_object_ids(result))
