@@ -18,7 +18,8 @@ collection = db["roles"]
 # ✅ Get All Roles with pagination ----------
 @router.post("/search", response_model=PaginatedRolesOut)
 async def list_roles(filters: GetRolesFilterIn = Body(...)):
-    query = {}
+    # Only fetch non-deleted roles
+    query = {"$or": [{"isDeleted": {"$exists": False}}, {"isDeleted": False}]}
 
     # Determine sort order (using creationTime for now)
     sort_order = -1 if filters.sort == "newest" else 1
@@ -59,7 +60,9 @@ async def list_roles(filters: GetRolesFilterIn = Body(...)):
 # ✅ Get All Roles ----------
 @router.get("/", response_model=PaginatedRolesOut)
 async def list_roles_all():
-    cursor = collection.find({})
+    query = {"$or": [{"isDeleted": {"$exists": False}}, {"isDeleted": False}]}
+
+    cursor = collection.find(query)
     roles = []
     async for doc in cursor:
         roles.append(stringify_object_ids(doc))
