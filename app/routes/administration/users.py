@@ -14,6 +14,7 @@ from app.schemas.administration.users.users import (
     UserWithPermissionsIn,
     UserWithPermissionsOut,
 )
+from core.hash import hash_password
 from core.sanitize import stringify_object_ids
 from app.db.mongo import db
 
@@ -73,6 +74,7 @@ async def create_user(user_with_permissions: UserWithPermissionsIn = Body(...)):
     now = datetime.now(timezone.utc)
 
     new_user_doc = user_with_permissions.user.model_dump()
+    new_user_doc["password"] = hash_password(new_user_doc["password"])
     new_user_doc["creationTime"] = now
     new_user_doc["lastModificationTime"] = None
     new_user_doc["lastModifierUserId"] = None
