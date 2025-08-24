@@ -11,7 +11,8 @@ from app.schemas.administration.users.users import (
     UserOut,
     PaginatedUsersOut,
     UserPermission,
-    UserWithPermissions,
+    UserWithPermissionsIn,
+    UserWithPermissionsOut,
 )
 from core.sanitize import stringify_object_ids
 from app.db.mongo import db
@@ -66,39 +67,33 @@ async def list_users(filters: GetUsersFilterIn = Body(...)):
         "items": users,
     }
 
-
 # ✅ Create User ----------
-@router.post("/", response_model=UserWithPermissions)
-async def create_user(user_with_permissions: UserWithPermissions = Body(...)):
+@router.post("/create", response_model=UserWithPermissionsOut)
+async def create_user(user_with_permissions: UserWithPermissionsIn = Body(...)):
     now = datetime.now(timezone.utc)
 
-    # prepare new user document without `id`
-    new_user_doc = user_with_permissions.user.model_dump(exclude={"id"})
+    new_user_doc = user_with_permissions.user.model_dump()
     new_user_doc["creationTime"] = now
     new_user_doc["lastModificationTime"] = None
     new_user_doc["lastModifierUserId"] = None
     new_user_doc["isDeleted"] = False
 
-    # insert into MongoDB
     result = await collection.insert_one(new_user_doc)
-
-    # add generated _id as id in response only
     new_user_doc["id"] = str(result.inserted_id)
 
-    # build response
-    return UserWithPermissions(
+    return UserWithPermissionsOut(
         user=UserOut(**new_user_doc),
-        roles=user_with_permissions.roles,
-        memberedOrganizationUnits=user_with_permissions.memberedOrganizationUnits,
-        allOrganizationUnits=user_with_permissions.allOrganizationUnits,
-        grantedPermissionNames=None,
-        permissions=None,
+        grantedRoles=user_with_permissions.grantedRoles,
+        roles=[],
+        memberedOrganisationUnits=[],
+        allOrganizationUnits=[],
+        grantedPermissionNames=[],
+        permissions=[],
     )
 
-
 # ✅ Update User ----------
-@router.put("/{id}", response_model=UserWithPermissions)
-async def update_user(id: str, user_with_permissions: UserWithPermissions = Body(...)):
+@router.put("/{id}", response_model=UserWithPermissionsOut)
+async def update_user(id: str, user_with_permissions: UserWithPermissionsIn = Body(...)):
     if not ObjectId.is_valid(id):
         raise HTTPException(status_code=400, detail="Invalid user ID")
 
@@ -115,10 +110,10 @@ async def update_user(id: str, user_with_permissions: UserWithPermissions = Body
         raise HTTPException(status_code=404, detail="User not found")
 
     # attach granted permissions
-    user_with_permissions = UserWithPermissions(
+    user_with_permissions = UserWithPermissionsOut(
         user=UserOut(**stringify_object_ids(update_data)),
         roles=user_with_permissions.roles,
-        memberedOrganizationUnits=user_with_permissions.memberedOrganizationUnits,
+        memberedOrganisationUnits=user_with_permissions.memberedOrganisationUnits,
         allOrganizationUnits=user_with_permissions.allOrganizationUnits,
         grantedPermissionNames= None,
         permissions= None
@@ -178,7 +173,7 @@ async def update_user_permissions(id: str, payload: UserPermission = Body(...)):
 
 
 # ✅ Get User by ID ----------
-@router.get("/GetUserForEdit", response_model=UserWithPermissions)
+@router.get("/GetUserForEdit", response_model=UserWithPermissionsOut)
 async def get_user(id: Optional[str] = Query(None)):
     user_doc = None
 
@@ -241,10 +236,10 @@ async def get_user(id: Optional[str] = Query(None)):
         all_org_units.append(OrganisationUnitOut(**stringify_object_ids(ou_doc)))
 
     # ---------- response ----------
-    return UserWithPermissions(
+    return UserWithPermissionsOut(
         user=user_out,
         roles=all_roles,
-        memberedOrganizationUnits=user_doc.get("memberedOrganizationUnits", []) if user_doc else [],
+        memberedOrganisationUnits=user_doc.get("memberedOrganisationUnits", []) if user_doc else [],
         allOrganizationUnits=all_org_units,
         grantedPermissionNames=user_doc.get("grantedPermissionNames", []) if user_doc else [],
         permissions=user_doc.get("permissions", []) if user_doc else [],

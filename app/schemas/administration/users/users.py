@@ -29,7 +29,7 @@ class UserIn(BaseModel):
 
 class UserOut(UserIn):
     id: str
-    roles: List[RoleIn] = []
+    roles: Optional[List[RoleIn]] = []
     creationTime: Optional[datetime] = None
 
 
@@ -41,14 +41,25 @@ class UserRoleAssignment(BaseModel):
     inheritedFromOrganizationUnit: bool = False
 
 # ---------- Wrapper with Permissions ----------
-class UserWithPermissions(BaseModel):
-    user: UserOut
-    roles: List[RoleOut] = None
-    memberedOrganizationUnits: List[str] = None
-    allOrganizationUnits: List[OrganisationUnitOut] = None
 
-    grantedPermissionNames: Optional[List[str]] = None
-    permissions: Optional[List[str]] = None  # extend later if needed
+class UserWithPermissionsIn(BaseModel):
+    user: UserIn
+    grantedRoles: List[str] = []
+    roles: List[RoleIn] = []
+    memberedOrganisationUnits: List[str] = []
+    allOrganizationUnits: List[OrganisationUnitOut] = []
+    grantedPermissionNames: Optional[List[str]] = []
+    permissions: Optional[List[str]] = []
+
+class UserWithPermissionsOut(BaseModel):
+    user: UserOut
+    grantedRoles: List[str] = []
+    roles: List[RoleOut] = []
+    memberedOrganisationUnits: List[str] = []
+    allOrganizationUnits: List[OrganisationUnitOut] = []
+    grantedPermissionNames: Optional[List[str]] = []
+    permissions: Optional[List[str]] = []
+
 
 # ---------- Pagination ----------
 class PaginatedUsersOut(BaseModel):
