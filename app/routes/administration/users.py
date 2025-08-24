@@ -196,6 +196,7 @@ async def get_user(id: Optional[str] = Query(None)):
             name="",
             surname="",
             emailAddress="",
+            password="",
             isActive=False,
             fullName="",
             creationTime=None,
