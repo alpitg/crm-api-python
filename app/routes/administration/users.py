@@ -3,6 +3,8 @@ from bson import ObjectId
 from fastapi import APIRouter, Body, HTTPException
 from math import ceil
 
+from app.schemas.administration.organisation_units.organisation_units import OrganisationUnitOut
+from app.schemas.administration.roles.roles import RoleOut
 from app.schemas.administration.users.users import (
     GetUsersFilterIn,
     UserOut,
@@ -15,6 +17,9 @@ from app.db.mongo import db
 
 router = APIRouter()
 collection = db["users"]
+roles_collection = db["roles"]
+org_units_collection = db["organisation_units"]
+
 
 
 # ✅ Get All Users with pagination ----------
@@ -60,18 +65,6 @@ async def list_users(filters: GetUsersFilterIn = Body(...)):
         "items": users,
     }
 
-
-# ✅ Get User by ID ----------
-@router.get("/{id}", response_model=UserOut)
-async def get_user(id: str):
-    if not ObjectId.is_valid(id):
-        raise HTTPException(status_code=400, detail="Invalid user ID")
-
-    user = await collection.find_one({"_id": ObjectId(id), "isDeleted": {"$ne": True}})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    return stringify_object_ids(user)
 
 # ✅ Create User ----------
 @router.post("/", response_model=UserWithPermissions)
@@ -180,4 +173,78 @@ async def update_user_permissions(id: str, payload: UserPermission = Body(...)):
     return UserPermission(
         id=str(result["_id"]),
         grantedPermissionNames=result.get("grantedPermissionNames", []),
+    )
+
+
+# ✅ Get User by ID ----------
+@router.get("/GetUserForEdit/{id}", response_model=UserWithPermissions)
+async def get_user(id: str):
+    user_doc = None
+
+    # ---------- Try fetching user only if valid ObjectId ----------
+    if ObjectId.is_valid(id):
+        user_doc = await collection.find_one(
+            {"_id": ObjectId(id), "isDeleted": {"$ne": True}}
+        )
+        if user_doc:
+            user_doc = stringify_object_ids(user_doc)
+
+    # ---------- prepare user_out ----------
+    if user_doc:
+        user_out = UserOut(**user_doc)
+    else:
+        # Create empty object with default values
+        user_out = UserOut(
+            id="",
+            userName="",
+            name="",
+            surname="",
+            emailAddress="",
+            isActive=False,
+            fullName="",
+            creationTime=None,
+            lastModificationTime=None,
+            lastModifierUserId=None,
+            isDeleted=False,
+        )
+
+    # ---------- fetch all roles ----------
+    roles_cursor = roles_collection.find(
+        {"$or": [{"isDeleted": {"$exists": False}}, {"isDeleted": False}]}
+    )
+    all_roles: list[RoleOut] = []
+    async for role_doc in roles_cursor:
+        role_doc = stringify_object_ids(role_doc)
+
+        # check assignment only if user exists
+        is_assigned = False
+        if user_doc and "roles" in user_doc:
+            is_assigned = any(
+                str(r.get("roleId")) == role_doc["id"] for r in user_doc.get("roles", [])
+            )
+
+        all_roles.append(
+            RoleOut(
+                **role_doc,
+                isAssigned=is_assigned,
+                inheritedFromOrganizationUnit=False,
+            )
+        )
+
+    # ---------- fetch all org units ----------
+    org_units_cursor = org_units_collection.find(
+        {"$or": [{"isDeleted": {"$exists": False}}, {"isDeleted": False}]}
+    )
+    all_org_units: list[OrganisationUnitOut] = []
+    async for ou_doc in org_units_cursor:
+        all_org_units.append(OrganisationUnitOut(**stringify_object_ids(ou_doc)))
+
+    # ---------- response ----------
+    return UserWithPermissions(
+        user=user_out,
+        roles=all_roles,
+        memberedOrganizationUnits=user_doc.get("memberedOrganizationUnits", []) if user_doc else [],
+        allOrganizationUnits=all_org_units,
+        grantedPermissionNames=user_doc.get("grantedPermissionNames", []) if user_doc else [],
+        permissions=user_doc.get("permissions", []) if user_doc else [],
     )

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel
 
-from app.schemas.administration.organization_units.organization_units import OrganisationUnitOut
+from app.schemas.administration.organisation_units.organisation_units import OrganisationUnitOut
 from app.schemas.administration.roles.roles import RoleIn, RoleOut
 
 
@@ -30,7 +30,7 @@ class UserIn(BaseModel):
 class UserOut(UserIn):
     id: str
     roles: List[RoleIn] = []
-    creationTime: datetime
+    creationTime: Optional[datetime] = None
 
 
 class UserRoleAssignment(BaseModel):

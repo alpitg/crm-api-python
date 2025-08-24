@@ -30,6 +30,7 @@ class RoleOut(RoleIn):
     lastModificationTime: Optional[datetime] = None
     lastModifierUserId: Optional[int] = None
     isDeleted: Optional[bool] = False
+    isAssigned: Optional[bool] = False
 
 class RoleWithPermissions(BaseModel):
     role: RoleIn
