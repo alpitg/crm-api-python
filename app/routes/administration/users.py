@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
+from typing import Optional
 from bson import ObjectId
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Query
 from math import ceil
 
 from app.schemas.administration.organisation_units.organisation_units import OrganisationUnitOut
@@ -177,8 +178,8 @@ async def update_user_permissions(id: str, payload: UserPermission = Body(...)):
 
 
 # ✅ Get User by ID ----------
-@router.get("/GetUserForEdit/{id}", response_model=UserWithPermissions)
-async def get_user(id: str):
+@router.get("/GetUserForEdit", response_model=UserWithPermissions)
+async def get_user(id: Optional[str] = Query(None)):
     user_doc = None
 
     # ---------- Try fetching user only if valid ObjectId ----------
