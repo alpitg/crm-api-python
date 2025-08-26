@@ -112,6 +112,8 @@ async def update_user(id: str, user_with_permissions: UserWithPermissionsIn = Bo
     if not result:
         raise HTTPException(status_code=404, detail="User not found")
 
+    update_data["id"] = id
+
     # attach granted permissions
     user_with_permissions = UserWithPermissionsOut(
         user=UserOut(**stringify_object_ids(update_data)),

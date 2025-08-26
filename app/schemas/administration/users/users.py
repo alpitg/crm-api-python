@@ -26,6 +26,10 @@ class UserIn(BaseModel):
     phoneNumber: Optional[str] = None
     profilePictureId: Optional[str] = None
     lockoutEndDateUtc: Optional[datetime] = None
+    setRandomPassword: bool = False
+    shouldChangePasswordOnNextLogin: bool = False
+    sendActivationEmail: bool = False
+    isLockoutEnabled: bool = False
 
 
 class UserOut(UserIn):
