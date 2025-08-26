@@ -74,6 +74,7 @@ async def create_user(user_with_permissions: UserWithPermissionsIn = Body(...)):
     now = datetime.now(timezone.utc)
 
     new_user_doc = user_with_permissions.user.model_dump()
+    new_user_doc["grantedRoles"] = user_with_permissions.grantedRoles or []
     new_user_doc["password"] = hash_password(new_user_doc["password"])
     new_user_doc["creationTime"] = now
     new_user_doc["lastModificationTime"] = None
@@ -212,15 +213,14 @@ async def get_user(id: Optional[str] = Query(None)):
         {"$or": [{"isDeleted": {"$exists": False}}, {"isDeleted": False}]}
     )
     all_roles: list[RoleOut] = []
+
     async for role_doc in roles_cursor:
         role_doc = stringify_object_ids(role_doc)
 
-        # check assignment only if user exists
+        # check assignment based on grantedRoles (list of roleIds)
         is_assigned = False
-        if user_doc and "roles" in user_doc:
-            is_assigned = any(
-                str(r.get("roleId")) == role_doc["id"] for r in user_doc.get("roles", [])
-            )
+        if user_doc and "grantedRoles" in user_doc:
+            is_assigned = role_doc["id"] in user_doc.get("grantedRoles", [])
 
         all_roles.append(
             RoleOut(
