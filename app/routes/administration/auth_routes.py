@@ -4,9 +4,10 @@ from datetime import timedelta
 from app.db.mongo import db
 
 from app.schemas.administration.auth_schemas import LoginRequest, TokenResponse
-from app.schemas.administration.users.users import ChangePasswordRequest, UpdateUserProfileRequest, UserIn
+from app.schemas.administration.users.users import ChangePasswordRequest, UpdateUserProfileRequest, UserIn, UserOut
 from app.services.users_service import get_user_with_permissions
 from app.utils.auth_utils import create_access_token, hash_password, verify_password
+from core.sanitize import stringify_object_ids
 
 router = APIRouter()
 users_collection = db["users"]
@@ -69,6 +70,32 @@ async def change_password(id: str, request: ChangePasswordRequest):
 
     return {"message": "Password updated successfully"}
 
+#region User Profile
+
+# ✅ Get current user profile
+@router.get("/users/{id}/current-user-profile", response_model=UserOut)
+async def get_current_user_profile(id: str):
+    """
+    Fetch current user profile for editing.
+    """
+    if not id or not ObjectId.is_valid(id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user ID"
+        )
+
+    user_doc = await users_collection.find_one({"_id": ObjectId(id), "isDeleted": {"$ne": True}})
+    if not user_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Convert ObjectId fields to string
+    user_doc = stringify_object_ids(user_doc)
+
+    return UserOut(**user_doc)
+
 # ✅ Update current user profile
 @router.put("/users/{id}/current-user-profile", status_code=status.HTTP_200_OK)
 async def update_current_user_profile(id: str, request: UpdateUserProfileRequest):
@@ -99,3 +126,5 @@ async def update_current_user_profile(id: str, request: UpdateUserProfileRequest
     await users_collection.update_one({"_id": ObjectId(id)}, {"$set": update_data})
 
     return {"message": "Details updated successfully"}
+
+#endregion
