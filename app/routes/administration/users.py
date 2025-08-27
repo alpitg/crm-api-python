@@ -101,7 +101,7 @@ async def update_user(id: str, user_with_permissions: UserWithPermissionsIn = Bo
         raise HTTPException(status_code=400, detail="Invalid user ID")
 
     update_data = user_with_permissions.user.model_dump(exclude_unset=True)
-    update_data = user_with_permissions.grantedRoles or []
+    update_data["grantedRoles"] = user_with_permissions.grantedRoles or []
     update_data["lastModificationTime"] = datetime.now(timezone.utc)
 
     result = await collection.find_one_and_update(
