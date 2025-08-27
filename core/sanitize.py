@@ -32,3 +32,10 @@ def stringify_object_ids(obj):
         return str(obj)
     else:
         return obj
+
+def sanitize_user(user_doc: dict) -> dict:
+    if not user_doc:
+        return user_doc
+    user_doc = dict(user_doc)  # copy to avoid mutating Mongo cursor
+    user_doc.pop("password", None)
+    return user_doc

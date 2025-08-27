@@ -4,7 +4,7 @@ from app.db.mongo import db
 from app.schemas.administration.organisation_units.organisation_units import OrganisationUnitOut
 from app.schemas.administration.users.users import UserOut, UserWithPermissionsOut
 from app.schemas.administration.roles.roles import RoleOut
-from core.sanitize import stringify_object_ids
+from core.sanitize import sanitize_user, stringify_object_ids
 
 # Collections
 users_collection = db["users"]
@@ -18,7 +18,8 @@ async def get_user_with_permissions(id: Optional[str]) -> UserWithPermissionsOut
     # ---------- Try fetching user only if valid ObjectId ----------
     if id and ObjectId.is_valid(id):
         user_doc = await users_collection.find_one(
-            {"_id": ObjectId(id), "isDeleted": {"$ne": True}}
+            {"_id": ObjectId(id), "isDeleted": {"$ne": True}},
+            projection={"password": 0, "tempPassword": 0}
         )
         if user_doc:
             user_doc = stringify_object_ids(user_doc)
@@ -72,6 +73,9 @@ async def get_user_with_permissions(id: Optional[str]) -> UserWithPermissionsOut
     all_org_units: list[OrganisationUnitOut] = []
     async for ou_doc in org_units_cursor:
         all_org_units.append(OrganisationUnitOut(**stringify_object_ids(ou_doc)))
+
+    # remove password if present
+    user_out = sanitize_user(user_out)
 
     # ---------- response ----------
     return UserWithPermissionsOut(

@@ -13,8 +13,8 @@ from app.schemas.administration.users.users import (
     UserWithPermissionsOut,
 )
 from app.services.users_service import get_user_with_permissions
-from app.utils.auth_utils import hash_password
-from core.sanitize import stringify_object_ids
+from app.utils.auth_utils import generate_random_password, hash_password
+from core.sanitize import sanitize_user, stringify_object_ids
 from app.db.mongo import db
 
 router = APIRouter()
@@ -23,8 +23,12 @@ roles_collection = db["roles"]
 org_units_collection = db["organisation_units"]
 
 
+from math import ceil
+from fastapi import Body, APIRouter
 
-# ✅ Get All Users with pagination ----------
+router = APIRouter()
+
+# ✅ Get All Users with Pagination ----------
 @router.post("/search", response_model=PaginatedUsersOut)
 async def list_users(filters: GetUsersFilterIn = Body(...)):
     # Only fetch non-deleted users
@@ -40,16 +44,16 @@ async def list_users(filters: GetUsersFilterIn = Body(...)):
             {"emailAddress": regex},
         ]
 
-    # Determine sort order (using creationTime for now)
+    # Determine sort order
     sort_order = -1 if filters.sort == "newest" else 1
 
     # Count total docs
     total = await collection.count_documents(query)
 
-    # Apply pagination and sorting
+    # Apply pagination + exclude password at DB level
     skip = (filters.page - 1) * filters.pageSize
     cursor = (
-        collection.find(query)
+        collection.find(query, projection={"password": 0, "tempPassword": 0})  # ✅ exclude password
         .sort("creationTime", sort_order)
         .skip(skip)
         .limit(filters.pageSize)
@@ -103,6 +107,21 @@ async def update_user(id: str, user_with_permissions: UserWithPermissionsIn = Bo
     update_data["grantedRoles"] = user_with_permissions.grantedRoles or []
     update_data["lastModificationTime"] = datetime.now(timezone.utc)
 
+    #region handle password separately
+
+    # remove password if present in update_data
+    if "password" in update_data:
+        update_data.pop("password")  # remove it from dict
+
+    # Handle password update logic only if user wants to generate random password
+    if update_data.get("setRandomPassword"):
+        # Generate and hash a random password
+        random_password = generate_random_password()
+        update_data["tempPassword"] = random_password
+        update_data["password"] = hash_password(random_password)
+        update_data["shouldChangePasswordOnNextLogin"] = True
+    #endregion
+
     result = await collection.find_one_and_update(
         {"_id": ObjectId(id), "isDeleted": {"$ne": True}},
         {"$set": update_data},
@@ -113,6 +132,9 @@ async def update_user(id: str, user_with_permissions: UserWithPermissionsIn = Bo
         raise HTTPException(status_code=404, detail="User not found")
 
     update_data["id"] = id
+
+    # remove password if present
+    update_data = sanitize_user(update_data)
 
     # attach granted permissions
     user_with_permissions = UserWithPermissionsOut(
