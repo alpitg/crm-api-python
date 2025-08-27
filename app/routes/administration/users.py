@@ -181,7 +181,7 @@ async def update_user_permissions(id: str, payload: UserPermission = Body(...)):
 
 
 # ✅ Get User by ID ----------
-@router.get("/GetUserForEdit", response_model=UserWithPermissionsOut)
+@router.get("/get-user-for-edit", response_model=UserWithPermissionsOut)
 async def get_user(id: Optional[str] = Query(None)):
     return await get_user_with_permissions(id)
     

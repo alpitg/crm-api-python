@@ -4,7 +4,7 @@ from datetime import timedelta
 from app.db.mongo import db
 
 from app.schemas.administration.auth_schemas import LoginRequest, TokenResponse
-from app.schemas.administration.users.users import ChangePasswordRequest, UserIn
+from app.schemas.administration.users.users import ChangePasswordRequest, UpdateUserProfileRequest, UserIn
 from app.services.users_service import get_user_with_permissions
 from app.utils.auth_utils import create_access_token, hash_password, verify_password
 
@@ -17,6 +17,7 @@ def user_helper(user) -> dict:
     return user
 
 
+# ✅ Login
 @router.post("/login", response_model=TokenResponse)
 async def login(data: LoginRequest):
     user: UserIn = await users_collection.find_one({"userName": data.userName})
@@ -41,6 +42,7 @@ async def login(data: LoginRequest):
     return {"accessToken": access_token, "tokenType": "bearer", "user": user_detail}
 
 
+# ✅ Update password
 @router.put("/users/{id}/change-password", status_code=status.HTTP_200_OK)
 async def change_password(id: str, request: ChangePasswordRequest):
     if not ObjectId.is_valid(id):
@@ -66,3 +68,34 @@ async def change_password(id: str, request: ChangePasswordRequest):
     )
 
     return {"message": "Password updated successfully"}
+
+# ✅ Update current user profile
+@router.put("/users/{id}/current-user-profile", status_code=status.HTTP_200_OK)
+async def update_current_user_profile(id: str, request: UpdateUserProfileRequest):
+    # Validate ObjectId
+    if not ObjectId.is_valid(id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user ID")
+
+    # Fetch user
+    user = await users_collection.find_one({"_id": ObjectId(id)})
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Prepare update data
+    update_data = {}
+    if request.name is not None:
+        update_data["name"] = request.name
+    if request.surname is not None:
+        update_data["surname"] = request.surname
+    if request.emailAddress is not None:
+        update_data["emailAddress"] = request.emailAddress
+    if request.userName is not None:
+        update_data["userName"] = request.userName
+
+    if not update_data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No valid fields to update")
+
+    # Update in DB
+    await users_collection.update_one({"_id": ObjectId(id)}, {"$set": update_data})
+
+    return {"message": "Details updated successfully"}

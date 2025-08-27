@@ -85,3 +85,11 @@ class UserPermission(BaseModel):
 class ChangePasswordRequest(BaseModel):
     currentPassword: str
     newPassword: str
+
+# update profile
+class UpdateUserProfileRequest(BaseModel):
+    name: Optional[str]
+    surname: Optional[str]
+    emailAddress: Optional[str]
+    userName: Optional[str]
+   
