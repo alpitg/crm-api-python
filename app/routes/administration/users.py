@@ -4,8 +4,6 @@ from bson import ObjectId
 from fastapi import APIRouter, Body, HTTPException, Query
 from math import ceil
 
-from app.schemas.administration.organisation_units.organisation_units import OrganisationUnitOut
-from app.schemas.administration.roles.roles import RoleOut
 from app.schemas.administration.users.users import (
     GetUsersFilterIn,
     UserOut,
