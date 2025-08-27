@@ -7,5 +7,5 @@ class LoginRequest(BaseModel):
     rememberMe: Optional[bool] = False
 
 class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+    accessToken: str
+    tokenType: str = "bearer"
