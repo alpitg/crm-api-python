@@ -1,7 +1,7 @@
 
 from fastapi import FastAPI
 
-from app.routes import customer, orders, ping, user
+from app.routes import customer, orders, ping
 from app.routes.administration import auth_routes, organisation_units, role_permissions, roles, users
 from app.routes.catalog import products
 from app.routes.master import frame_types, glass_types, misc_charges, mount_types, order_status
@@ -10,7 +10,6 @@ def setup_router(app: FastAPI) -> None:
     """
     Register all routes with the FastAPI application.
     """
-    app.include_router(user.router, prefix="/api")
     app.include_router(ping.router, prefix="/api/ping")
 
     #region Administration

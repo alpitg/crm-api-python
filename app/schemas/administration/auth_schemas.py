@@ -1,6 +1,8 @@
 from typing import Optional
 from pydantic import BaseModel
 
+from app.schemas.administration.users.users import UserWithPermissionsOut
+
 class LoginRequest(BaseModel):
     userName: str
     password: str
@@ -9,3 +11,4 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     accessToken: str
     tokenType: str = "bearer"
+    user: Optional[UserWithPermissionsOut] = None

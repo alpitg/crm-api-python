@@ -1,10 +1,12 @@
+from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status
 from datetime import timedelta
 from app.db.mongo import db
 
 from app.schemas.administration.auth_schemas import LoginRequest, TokenResponse
-from app.schemas.administration.users.users import UserIn
-from app.utils.auth_utils import create_access_token, verify_password
+from app.schemas.administration.users.users import ChangePasswordRequest, UserIn
+from app.services.users_service import get_user_with_permissions
+from app.utils.auth_utils import create_access_token, hash_password, verify_password
 
 router = APIRouter()
 users_collection = db["users"]
@@ -34,4 +36,33 @@ async def login(data: LoginRequest):
     }
 
     access_token = create_access_token(data=token_data, expires_delta=timedelta(minutes=30))
-    return {"accessToken": access_token, "tokenType": "bearer"}
+    user_detail = await get_user_with_permissions(user["_id"])
+
+    return {"accessToken": access_token, "tokenType": "bearer", "user": user_detail}
+
+
+@router.put("/users/{id}/change-password", status_code=status.HTTP_200_OK)
+async def change_password(id: str, request: ChangePasswordRequest):
+    if not ObjectId.is_valid(id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user ID")
+
+    user = await users_collection.find_one({"_id": ObjectId(id)})
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # check old password
+    if not verify_password(request.currentPassword, user.get("password", "")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+
+    # update with new password hash
+    hashed_password = hash_password(request.newPassword)
+    await users_collection.update_one(
+        {"_id": ObjectId(id)},
+        {"$set": {"password": hashed_password}}
+    )
+
+    return {"message": "Password updated successfully"}

@@ -80,3 +80,8 @@ class UserPermission(BaseModel):
     id: str
     grantedPermissionNames: List[str] = []
 
+
+# change password
+class ChangePasswordRequest(BaseModel):
+    currentPassword: str
+    newPassword: str
