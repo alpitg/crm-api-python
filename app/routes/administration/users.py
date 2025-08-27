@@ -14,7 +14,7 @@ from app.schemas.administration.users.users import (
     UserWithPermissionsIn,
     UserWithPermissionsOut,
 )
-from core.hash import hash_password
+from app.utils.auth_utils import hash_password
 from core.sanitize import stringify_object_ids
 from app.db.mongo import db
 

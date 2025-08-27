@@ -30,7 +30,7 @@ class UserIn(BaseModel):
     shouldChangePasswordOnNextLogin: bool = False
     sendActivationEmail: bool = False
     isLockoutEnabled: bool = False
-
+    isDarkMode: Optional[bool] = False
 
 class UserOut(UserIn):
     id: str

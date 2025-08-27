@@ -83,6 +83,19 @@ sudo mongod --dbpath=/Users/alpitg/data/db
 
 ```
 
+## Auth - generate JWT token
+
+```.env
+CORS_ORIGINS=http://localhost:5173
+# secret
+SECRET_KEY=JO_zPriWnySg71hC5X3J78EIXOGUz8Rs2TJa2OGw2OExEupXV8NFRP2Gfgz8hHtBiuqq12aoIr-320oy1Dkzsg
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+```
+
+```py
+import secrets
+print(secrets.token_urlsafe(64))
+```
 
 
 
@@ -107,8 +120,6 @@ Below are the master tables we need bring the data from the mongoDB
 
 prepare the industry best practice schema in mongo
 ```
-
-
 
   
 ```js

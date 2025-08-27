@@ -6,3 +6,5 @@ pydantic-settings
 email-validator
 python-multipart
 passlib[bcrypt]==1.7.4
+python-jose[cryptography]
+# pymongo
