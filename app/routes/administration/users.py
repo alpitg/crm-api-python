@@ -109,17 +109,23 @@ async def update_user(id: str, user_with_permissions: UserWithPermissionsIn = Bo
 
     #region handle password separately
 
-    # remove password if present in update_data
-    if "password" in update_data:
-        update_data.pop("password")  # remove it from dict
+    password = update_data.get("password")
+    set_random = update_data.get("setRandomPassword", False)
 
-    # Handle password update logic only if user wants to generate random password
-    if update_data.get("setRandomPassword"):
-        # Generate and hash a random password
+    if set_random:
+        # Always override with random password
         random_password = generate_random_password()
         update_data["tempPassword"] = random_password
         update_data["password"] = hash_password(random_password)
         update_data["shouldChangePasswordOnNextLogin"] = True
+
+    elif password:  # only hash if non-empty string
+        update_data["password"] = hash_password(password)
+
+    else:
+        # if empty string or None, don't update password
+        update_data.pop("password", None)
+
     #endregion
 
     result = await collection.find_one_and_update(

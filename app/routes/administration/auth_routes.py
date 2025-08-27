@@ -21,7 +21,14 @@ def user_helper(user) -> dict:
 # ✅ Login
 @router.post("/login", response_model=TokenResponse)
 async def login(data: LoginRequest):
-    user: UserIn = await users_collection.find_one({"userName": data.userName})
+    user: UserIn = await users_collection.find_one(
+        {
+            "$or": [
+                {"userName": data.userName},
+                {"emailAddress": data.userName},  # allow login with email too
+            ]
+        }
+    )
 
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
