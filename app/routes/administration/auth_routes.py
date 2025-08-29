@@ -1,22 +1,20 @@
+import uuid
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from app.db.mongo import db
 
-from app.schemas.administration.auth_schemas import LoginRequest, TokenResponse
+from app.schemas.administration.auth_schemas import ForgotPasswordRequest, LoginRequest, ResetPasswordRequest, TokenResponse
 from app.schemas.administration.users.users import ChangePasswordRequest, UpdateUserProfileRequest, UserIn, UserOut
 from app.services.users_service import get_user_with_permissions
 from app.utils.auth_utils import create_access_token, hash_password, verify_password
 from core.sanitize import stringify_object_ids
+from app.services.mail_service import send_email
+from config import settings
 
 router = APIRouter()
 users_collection = db["users"]
-
-
-def user_helper(user) -> dict:
-    user["id"] = str(user["_id"])
-    return user
-
+reset_tokens_collection = db["reset_tokens"]  # collection for reset tokens
 
 # ✅ Login
 @router.post("/login", response_model=TokenResponse)
@@ -48,6 +46,69 @@ async def login(data: LoginRequest):
     user_detail = await get_user_with_permissions(user["_id"])
 
     return {"accessToken": access_token, "tokenType": "bearer", "user": user_detail}
+
+
+@router.post("/forgot-password")
+async def forgot_password(data: ForgotPasswordRequest):
+    user = await users_collection.find_one({"emailAddress": data.emailAddress})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    reset_token = str(uuid.uuid4())
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+
+    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+
+    await reset_tokens_collection.insert_one({
+        "userId": str(user["_id"]),
+        "token": reset_token,
+        "expiresAt": expires_at,
+        "link": reset_link
+    })
+
+
+    # # ✅ Send email
+    # send_email(
+    #     subject="Password Reset Request",
+    #     recipients=[data.emailAddress],
+    #     body=f"""
+    #     <p>Hello {data.emailAddress},</p>
+    #     <p>You requested a password reset. Click the link below to reset your password:</p>
+    #     <p><a href="{reset_link}">Reset Password</a></p>
+    #     <p>This link will expire in 1 hour.</p>
+    #     """
+    # )
+
+    return {"message": "Password reset link sent to your email"}
+
+
+# ✅ reset passowrd
+@router.post("/reset-password")
+async def reset_password(data: ResetPasswordRequest):
+    token_doc = await reset_tokens_collection.find_one({"token": data.code})
+
+    if not token_doc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
+
+    # Ensure expiresAt is timezone-aware (assuming it's UTC in DB)
+    expires_at = token_doc["expiresAt"]
+    if expires_at.tzinfo is None:  # naive datetime
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token expired")
+
+    # Update password
+    hashed_pw = hash_password(data.newPassword)
+    await users_collection.update_one(
+        {"_id": ObjectId(token_doc["userId"])},
+        {"$set": {"password": hashed_pw}}
+    )
+
+    # Delete used token
+    await reset_tokens_collection.delete_one({"_id": token_doc["_id"]})
+
+    return {"message": "Password reset successful"}
 
 
 # ✅ Update password

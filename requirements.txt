@@ -1,10 +1,17 @@
+# Core framework
 fastapi
-motor
 uvicorn
+
+# Database (Async MongoDB)
+motor
+
+# Validation & settings
 pydantic[dotenv]
 pydantic-settings
 email-validator
 python-multipart
+
+# Security & Auth
 passlib[bcrypt]==1.7.4
 python-jose[cryptography]
-# pymongo
+
