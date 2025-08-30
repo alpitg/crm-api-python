@@ -1,7 +1,10 @@
+import json
+from pathlib import Path
 from fastapi import APIRouter
 from typing import List
 
 from app.schemas.administration.roles.role_permissions import RolePermissionOut
+from config import Settings
 from core.sanitize import stringify_object_ids
 from app.db.mongo import db
 
@@ -22,161 +25,51 @@ async def get_role_permissions():
 # ✅ 2. Reset role permissions (delete + insert fresh data)
 @router.post("/reset", response_model=dict)
 async def reset_role_permissions():
+    settings = Settings()
+
+    # ✅ Ensure PROJECT_ROOT always has a valid value
+    PROJECT_ROOT = Path(settings.PROJECT_ROOT) if settings.PROJECT_ROOT else Path.cwd()
+    CONFIG_DIR = PROJECT_ROOT / "config"
+    permissions_file = CONFIG_DIR / "permissions.json"
+
+    # Read JSON file
+    with open(permissions_file, "r") as f:
+        permission_json = json.load(f)
+
+    # Flatten JSON into list
+    flat_permissions = flatten_permissions(permission_json.get("PAGES", {}))
+
     # Clean existing permissions
     await collection.delete_many({})
 
-    # Fresh data (you can move this to a config or constants file)
-    permissionItems = [
-        {
-            "name": "Pages",
-            "displayName": "Pages",
-            "description": "Access to all pages",
-            "parentName": "",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration",
-            "displayName": "Administration",
-            "description": "Access to all Administration pages",
-            "parentName": "Pages",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration.OrganizationUnits",
-            "displayName": "Organization Units",
-            "description": "Access to organization units",
-            "parentName": "Pages.Administration",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration.OrganizationUnits.Detail",
-            "displayName": "Organization Unit Details",
-            "description": "View organization unit details",
-            "parentName": "Pages.Administration.OrganizationUnits",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration.OrganizationUnits.Create",
-            "displayName": "Create Organization Unit",
-            "description": "Create new organization units",
-            "parentName": "Pages.Administration.OrganizationUnits",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration.OrganizationUnits.Edit",
-            "displayName": "Edit Organization Unit",
-            "description": "Edit existing organization units",
-            "parentName": "Pages.Administration.OrganizationUnits",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration.OrganizationUnits.Delete",
-            "displayName": "Delete Organization Unit",
-            "description": "Delete organization units",
-            "parentName": "Pages.Administration.OrganizationUnits",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration.Roles",
-            "displayName": "Roles",
-            "description": "Manage application roles",
-            "parentName": "Pages.Administration",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration.Roles.Create",
-            "displayName": "Create Role",
-            "description": "Create new role",
-            "parentName": "Pages.Administration.Roles",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration.Roles.Edit",
-            "displayName": "Edit Role",
-            "description": "Edit role",
-            "parentName": "Pages.Administration.Roles",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration.Roles.Delete",
-            "displayName": "Delete Role",
-            "description": "Delete existing role",
-            "parentName": "Pages.Administration.Roles",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration.Users",
-            "displayName": "Users",
-            "description": "Manage users and their permissions",
-            "parentName": "Pages.Administration",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration.Users.Create",
-            "displayName": "Create User",
-            "description": "Create new user",
-            "parentName": "Pages.Administration.Users",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration.Users.Edit",
-            "displayName": "Edit User",
-            "description": "Edit user",
-            "parentName": "Pages.Administration.Users",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Administration.Users.Delete",
-            "displayName": "Delete User",
-            "description": "Delete existing user",
-            "parentName": "Pages.Administration.Users",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Catalog",
-            "displayName": "Catalog",
-            "description": "Manage access for Catalog",
-            "parentName": "Pages",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Catalog.Product",
-            "displayName": "Products",
-            "description": "Manage products in catalog",
-            "parentName": "Pages.Catalog",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Catalog.ProductCategory",
-            "displayName": "Product Categories",
-            "description": "Manage product categories",
-            "parentName": "Pages.Catalog",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Sales",
-            "displayName": "Sales",
-            "description": "Manage access for Sales",
-            "parentName": "Pages",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Sales.Order",
-            "displayName": "Orders",
-            "description": "Manage sales orders",
-            "parentName": "Pages.Sales",
-            "isGrantedByDefault": False,
-        },
-        {
-            "name": "Pages.Sales.Customers",
-            "displayName": "Customers",
-            "description": "Manage sales customers",
-            "parentName": "Pages.Sales",
-            "isGrantedByDefault": False,
-        },
-    ]
+    # Insert fresh permissions into MongoDB
+    if flat_permissions:
+        await collection.insert_many(flat_permissions)
 
-    # Insert fresh permissions
-    await collection.insert_many(permissionItems)
+    return {"message": "Role permissions reset successfully", "count": len(flat_permissions)}
 
-    return {"message": "Role permissions reset successfully", "count": len(permissionItems)}
+
+def flatten_permissions(data: dict) -> list:
+    """
+    Recursively flatten nested permission dictionaries into a flat list
+    """
+    flat_list = []
+
+    def recurse(node: dict):
+        # process current node if it's a permission object
+        if "name" in node:
+            flat_list.append({
+                "name": node["name"],
+                "displayName": node.get("displayName"),
+                "description": node.get("description"),
+                "parentName": node.get("parentName"),
+                "isGrantedByDefault": node.get("isGrantedByDefault", False),
+            })
+
+        # go deeper for child permissions
+        for key, value in node.items():
+            if isinstance(value, dict):
+                recurse(value)
+
+    recurse(data)
+    return flat_list

@@ -6,7 +6,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALGORITHM: str = "HS256"
-
+    PROJECT_ROOT: str = ""
+    
     class Config:
         env_file = ".env"
 

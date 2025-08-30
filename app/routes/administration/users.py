@@ -12,6 +12,7 @@ from app.schemas.administration.users.users import (
     UserWithPermissionsIn,
     UserWithPermissionsOut,
 )
+from app.services.roles_service import get_roles_by_ids
 from app.services.users_service import get_user_with_permissions
 from app.utils.auth_utils import generate_random_password, hash_password
 from core.sanitize import sanitize_user, stringify_object_ids
@@ -89,7 +90,7 @@ async def create_user(user_with_permissions: UserWithPermissionsIn = Body(...)):
 
     return UserWithPermissionsOut(
         user=UserOut(**new_user_doc),
-        grantedRoles=user_with_permissions.grantedRoles,
+        grantedRoles= await get_roles_by_ids(user_with_permissions.grantedRoles),
         roles=[],
         memberedOrganisationUnits=[],
         allOrganizationUnits=[],
@@ -145,7 +146,7 @@ async def update_user(id: str, user_with_permissions: UserWithPermissionsIn = Bo
     # attach granted permissions
     user_with_permissions = UserWithPermissionsOut(
         user=UserOut(**stringify_object_ids(update_data)),
-        grantedRoles=user_with_permissions.grantedRoles,
+        grantedRoles= await get_roles_by_ids(user_with_permissions.grantedRoles),
         roles=user_with_permissions.roles,
         memberedOrganisationUnits=user_with_permissions.memberedOrganisationUnits,
         allOrganizationUnits=user_with_permissions.allOrganizationUnits,
@@ -211,3 +212,60 @@ async def update_user_permissions(id: str, payload: UserPermission = Body(...)):
 async def get_user(id: Optional[str] = Query(None)):
     return await get_user_with_permissions(id)
     
+
+# ✅ Seed Admin User with All Roles ----------
+@router.post("/seed-admin", response_model=dict)
+async def seed_admin_user():
+    """
+    Creates a default Admin user if not already present.
+    Assigns all available roles to grantedRoles.
+    """
+
+    admin_email = "admin@gmail.com"
+
+    existing_admin = await collection.find_one({"emailAddress": admin_email})
+    if existing_admin:
+        return {
+            "message": "Admin emailAddress already exists",
+            "id": str(existing_admin["_id"]),
+            "emailAddress": existing_admin["emailAddress"],
+        }
+
+    # Fetch all roles from roles collection
+    roles_cursor = roles_collection.find({}, {"_id": 1})
+    role_ids = [str(role["_id"]) async for role in roles_cursor]
+
+    now = datetime.now(timezone.utc)
+
+    admin_doc = {
+        "userName": "admin",
+        "name": "System",
+        "surname": "Administrator",
+        "emailAddress": admin_email,
+        "isEmailConfirmed": True,
+        "isActive": True,
+        "phoneNumber": None,
+        "profilePictureId": None,
+        "lockoutEndDateUtc": None,
+        "creationTime": now,
+        "lastModificationTime": None,
+        "lastModifierUserId": None,
+        "isDeleted": False,
+        "grantedRoles": role_ids,  # ✅ assign all roles
+        "isDarkMode": False,
+        "isLockoutEnabled": False,
+        "sendActivationEmail": False,
+        "setRandomPassword": False,
+        "shouldChangePasswordOnNextLogin": False,
+        "password": generate_random_password(),  # Set random password
+    }
+
+    result = await collection.insert_one(admin_doc)
+
+    return {
+        "message": "Admin user created successfully",
+        "id": str(result.inserted_id),
+        "userName": admin_doc["userName"],
+        "grantedRoles": admin_doc["grantedRoles"],
+    }
+

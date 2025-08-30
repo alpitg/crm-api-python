@@ -1,0 +1,303 @@
+{
+  "PAGES": {
+    "name": "Pages",
+    "displayName": "Pages",
+    "description": "Access to all pages",
+    "parentName": "",
+    "isGrantedByDefault": false,
+    "DASHBOARD": {
+      "name": "Pages.Dashboard",
+      "displayName": "Dashboard",
+      "description": "Access to dashboard",
+      "parentName": "Pages",
+      "isGrantedByDefault": false
+    },
+    "ADMINISTRATION": {
+      "name": "Pages.Administration",
+      "displayName": "Administration",
+      "description": "Access to administration section",
+      "parentName": "Pages",
+      "isGrantedByDefault": false,
+      "USERS": {
+        "name": "Pages.Administration.Users",
+        "displayName": "Users",
+        "description": "Manage users and their permissions",
+        "parentName": "Pages.Administration",
+        "isGrantedByDefault": false,
+        "DETAIL": {
+          "name": "Pages.Administration.Users.Detail",
+          "displayName": "User Details",
+          "description": "View user details",
+          "parentName": "Pages.Administration.Users",
+          "isGrantedByDefault": false
+        },
+        "CREATE": {
+          "name": "Pages.Administration.Users.Create",
+          "displayName": "Create User",
+          "description": "Create new user",
+          "parentName": "Pages.Administration.Users",
+          "isGrantedByDefault": false
+        },
+        "EDIT": {
+          "name": "Pages.Administration.Users.Edit",
+          "displayName": "Edit User",
+          "description": "Edit existing user",
+          "parentName": "Pages.Administration.Users",
+          "isGrantedByDefault": false
+        },
+        "DELETE": {
+          "name": "Pages.Administration.Users.Delete",
+          "displayName": "Delete User",
+          "description": "Delete user",
+          "parentName": "Pages.Administration.Users",
+          "isGrantedByDefault": false
+        }
+      },
+      "ROLES": {
+        "name": "Pages.Administration.Roles",
+        "displayName": "Roles",
+        "description": "Manage roles",
+        "parentName": "Pages.Administration",
+        "isGrantedByDefault": false,
+        "DETAIL": {
+          "name": "Pages.Administration.Roles.Detail",
+          "displayName": "Role Details",
+          "description": "View role details",
+          "parentName": "Pages.Administration.Roles",
+          "isGrantedByDefault": false
+        },
+        "CREATE": {
+          "name": "Pages.Administration.Roles.Create",
+          "displayName": "Create Role",
+          "description": "Create new role",
+          "parentName": "Pages.Administration.Roles",
+          "isGrantedByDefault": false
+        },
+        "EDIT": {
+          "name": "Pages.Administration.Roles.Edit",
+          "displayName": "Edit Role",
+          "description": "Edit role",
+          "parentName": "Pages.Administration.Roles",
+          "isGrantedByDefault": false
+        },
+        "DELETE": {
+          "name": "Pages.Administration.Roles.Delete",
+          "displayName": "Delete Role",
+          "description": "Delete existing role",
+          "parentName": "Pages.Administration.Roles",
+          "isGrantedByDefault": false
+        }
+      },
+      "ORGANIZATION_UNITS": {
+        "name": "Pages.Administration.OrganizationUnits",
+        "displayName": "Organization Units",
+        "description": "Manage organization units",
+        "parentName": "Pages.Administration",
+        "isGrantedByDefault": false,
+        "DETAIL": {
+          "name": "Pages.Administration.OrganizationUnits.Detail",
+          "displayName": "Organization Unit Details",
+          "description": "View organization unit details",
+          "parentName": "Pages.Administration.OrganizationUnits",
+          "isGrantedByDefault": false
+        },
+        "CREATE": {
+          "name": "Pages.Administration.OrganizationUnits.Create",
+          "displayName": "Create Organization Unit",
+          "description": "Create new organization units",
+          "parentName": "Pages.Administration.OrganizationUnits",
+          "isGrantedByDefault": false
+        },
+        "EDIT": {
+          "name": "Pages.Administration.OrganizationUnits.Edit",
+          "displayName": "Edit Organization Unit",
+          "description": "Edit existing organization units",
+          "parentName": "Pages.Administration.OrganizationUnits",
+          "isGrantedByDefault": false
+        },
+        "DELETE": {
+          "name": "Pages.Administration.OrganizationUnits.Delete",
+          "displayName": "Delete Organization Unit",
+          "description": "Delete organization units",
+          "parentName": "Pages.Administration.OrganizationUnits",
+          "isGrantedByDefault": false
+        }
+      }
+    },
+    "CATALOG": {
+      "name": "Pages.Catalog",
+      "displayName": "Catalog",
+      "description": "Access to catalog section",
+      "parentName": "Pages",
+      "isGrantedByDefault": false,
+      "PRODUCT": {
+        "name": "Pages.Catalog.Product",
+        "displayName": "Products",
+        "description": "Manage products",
+        "parentName": "Pages.Catalog",
+        "isGrantedByDefault": false,
+        "DETAIL": {
+          "name": "Pages.Catalog.Product.Detail",
+          "displayName": "Product Details",
+          "description": "View product details",
+          "parentName": "Pages.Catalog.Product",
+          "isGrantedByDefault": false
+        },
+        "CREATE": {
+          "name": "Pages.Catalog.Product.Create",
+          "displayName": "Create Product",
+          "description": "Create new product",
+          "parentName": "Pages.Catalog.Product",
+          "isGrantedByDefault": false
+        },
+        "EDIT": {
+          "name": "Pages.Catalog.Product.Edit",
+          "displayName": "Edit Product",
+          "description": "Edit product",
+          "parentName": "Pages.Catalog.Product",
+          "isGrantedByDefault": false
+        },
+        "DELETE": {
+          "name": "Pages.Catalog.Product.Delete",
+          "displayName": "Delete Product",
+          "description": "Delete product",
+          "parentName": "Pages.Catalog.Product",
+          "isGrantedByDefault": false
+        }
+      },
+      "CATEGORY": {
+        "name": "Pages.Catalog.ProductCategory",
+        "displayName": "Product Categories",
+        "description": "Manage product categories",
+        "parentName": "Pages.Catalog",
+        "isGrantedByDefault": false,
+        "DETAIL": {
+          "name": "Pages.Catalog.ProductCategory.Detail",
+          "displayName": "Category Details",
+          "description": "View category details",
+          "parentName": "Pages.Catalog.ProductCategory",
+          "isGrantedByDefault": false
+        },
+        "CREATE": {
+          "name": "Pages.Catalog.ProductCategory.Create",
+          "displayName": "Create Category",
+          "description": "Create new category",
+          "parentName": "Pages.Catalog.ProductCategory",
+          "isGrantedByDefault": false
+        },
+        "EDIT": {
+          "name": "Pages.Catalog.ProductCategory.Edit",
+          "displayName": "Edit Category",
+          "description": "Edit category",
+          "parentName": "Pages.Catalog.ProductCategory",
+          "isGrantedByDefault": false
+        },
+        "DELETE": {
+          "name": "Pages.Catalog.ProductCategory.Delete",
+          "displayName": "Delete Category",
+          "description": "Delete category",
+          "parentName": "Pages.Catalog.ProductCategory",
+          "isGrantedByDefault": false
+        }
+      }
+    },
+    "SALES": {
+      "name": "Pages.Sales",
+      "displayName": "Sales",
+      "description": "Access to sales related features",
+      "parentName": "Pages",
+      "isGrantedByDefault": false,
+      "ORDER": {
+        "name": "Pages.Sales.Order",
+        "displayName": "Orders",
+        "description": "Manage sales orders",
+        "parentName": "Pages.Sales",
+        "isGrantedByDefault": false,
+        "DETAIL": {
+          "name": "Pages.Sales.Order.Detail",
+          "displayName": "Order Details",
+          "description": "View order details",
+          "parentName": "Pages.Sales.Order",
+          "isGrantedByDefault": false
+        },
+        "CREATE": {
+          "name": "Pages.Sales.Order.Create",
+          "displayName": "Create Order",
+          "description": "Create new order",
+          "parentName": "Pages.Sales.Order",
+          "isGrantedByDefault": false
+        },
+        "EDIT": {
+          "name": "Pages.Sales.Order.Edit",
+          "displayName": "Edit Order",
+          "description": "Edit order",
+          "parentName": "Pages.Sales.Order",
+          "isGrantedByDefault": false
+        },
+        "DELETE": {
+          "name": "Pages.Sales.Order.Delete",
+          "displayName": "Delete Order",
+          "description": "Delete order",
+          "parentName": "Pages.Sales.Order",
+          "isGrantedByDefault": false
+        }
+      },
+      "CUSTOMERS": {
+        "name": "Pages.Sales.Customers",
+        "displayName": "Customers",
+        "description": "Manage customers",
+        "parentName": "Pages.Sales",
+        "isGrantedByDefault": false,
+        "DETAIL": {
+          "name": "Pages.Sales.Customers.Detail",
+          "displayName": "Customer Details",
+          "description": "View customer details",
+          "parentName": "Pages.Sales.Customers",
+          "isGrantedByDefault": false
+        },
+        "CREATE": {
+          "name": "Pages.Sales.Customers.Create",
+          "displayName": "Create Customer",
+          "description": "Create new customer",
+          "parentName": "Pages.Sales.Customers",
+          "isGrantedByDefault": false
+        },
+        "EDIT": {
+          "name": "Pages.Sales.Customers.Edit",
+          "displayName": "Edit Customer",
+          "description": "Edit customer",
+          "parentName": "Pages.Sales.Customers",
+          "isGrantedByDefault": false
+        },
+        "DELETE": {
+          "name": "Pages.Sales.Customers.Delete",
+          "displayName": "Delete Customer",
+          "description": "Delete customer",
+          "parentName": "Pages.Sales.Customers",
+          "isGrantedByDefault": false
+        }
+      }
+    },
+    "UIComponent": {
+      "name": "Pages.UIComponent",
+      "displayName": "UI Component",
+      "description": "Access to UI pages",
+      "parentName": "Pages",
+      "isGrantedByDefault": false
+    },
+    "SETTINGS": {
+      "name": "Pages.Settings",
+      "displayName": "Settings",
+      "description": "Manage application settings",
+      "parentName": "Pages",
+      "isGrantedByDefault": false,
+      "EDIT": {
+        "name": "Pages.Settings.Edit",
+        "displayName": "Edit Settings",
+        "description": "Edit settings",
+        "parentName": "Pages.Settings",
+        "isGrantedByDefault": false
+      }
+    }
+  }
+}

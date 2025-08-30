@@ -16,6 +16,7 @@ from app.db.mongo import db
 
 router = APIRouter()
 collection = db["roles"]
+role_permissions_collection = db["role_permissions"]
 
 
 # ✅ Get All Roles with pagination ----------
@@ -214,7 +215,14 @@ async def seed_default_roles():
                 isActive=True
             ).model_dump()
 
+            role_permissions = role_permissions_collection.find({}, {"name": 1, "_id": 0})
+            permissions = []
+            async for doc in role_permissions:
+                if "name" in doc:
+                    permissions.append(doc["name"])
+                        
             role_data["name"] = role_data["displayName"]
+            role_data["grantedPermissionNames"] = permissions
             role_data["creationTime"] = datetime.now(timezone.utc)
             role_data["lastModificationTime"] = None
             role_data["lastModifierUserId"] = None
