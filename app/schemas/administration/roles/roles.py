@@ -21,6 +21,7 @@ class RoleIn(BaseModel):
     isStatic: bool = False
     isActive: Optional[bool] = False
     creatorUserId: Optional[str] = None
+    grantedPermissionNames: Optional[List] = []
 
 
 # ---------- Output ----------
