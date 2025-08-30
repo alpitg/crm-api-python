@@ -13,7 +13,7 @@ from app.schemas.administration.users.users import (
     UserWithPermissionsOut,
 )
 from app.services.roles_service import get_roles_by_ids
-from app.services.users_service import get_user_with_permissions
+from app.services.users_service import ensure_unique_user, get_user_with_permissions, handle_password_logic
 from app.utils.auth_utils import generate_random_password, hash_password
 from core.sanitize import sanitize_user, stringify_object_ids
 from app.db.mongo import db
@@ -75,16 +75,20 @@ async def list_users(filters: GetUsersFilterIn = Body(...)):
 # ✅ Create User ----------
 @router.post("/create", response_model=UserWithPermissionsOut)
 async def create_user(user_with_permissions: UserWithPermissionsIn = Body(...)):
-    now = datetime.now(timezone.utc)
 
+    now = datetime.now(timezone.utc)
     new_user_doc = user_with_permissions.user.model_dump()
+    new_user_doc = handle_password_logic(new_user_doc, is_update=False)
     new_user_doc["grantedRoles"] = user_with_permissions.grantedRoles or []
-    new_user_doc["password"] = hash_password(new_user_doc["password"])
     new_user_doc["creationTime"] = now
     new_user_doc["lastModificationTime"] = None
     new_user_doc["lastModifierUserId"] = None
     new_user_doc["isDeleted"] = False
 
+    # ✅ Call common function
+    await ensure_unique_user(collection, new_user_doc)
+
+    # ✅ Insert only if unique
     result = await collection.insert_one(new_user_doc)
     new_user_doc["id"] = str(result.inserted_id)
 
@@ -98,6 +102,7 @@ async def create_user(user_with_permissions: UserWithPermissionsIn = Body(...)):
         permissions=[],
     )
 
+
 # ✅ Update User ----------
 @router.put("/{id}", response_model=UserWithPermissionsOut)
 async def update_user(id: str, user_with_permissions: UserWithPermissionsIn = Body(...)):
@@ -105,29 +110,15 @@ async def update_user(id: str, user_with_permissions: UserWithPermissionsIn = Bo
         raise HTTPException(status_code=400, detail="Invalid user ID")
 
     update_data = user_with_permissions.user.model_dump(exclude_unset=True)
+
+    # ✅ Check unique email/username (exclude self)
+    await ensure_unique_user(collection, update_data, exclude_id=id)
+
+    # ✅ Handle password separately
+    update_data = handle_password_logic(update_data, is_update=True)
+    
     update_data["grantedRoles"] = user_with_permissions.grantedRoles or []
     update_data["lastModificationTime"] = datetime.now(timezone.utc)
-
-    #region handle password separately
-
-    password = update_data.get("password")
-    set_random = update_data.get("setRandomPassword", False)
-
-    if set_random:
-        # Always override with random password
-        random_password = generate_random_password()
-        update_data["tempPassword"] = random_password
-        update_data["password"] = hash_password(random_password)
-        update_data["shouldChangePasswordOnNextLogin"] = True
-
-    elif password:  # only hash if non-empty string
-        update_data["password"] = hash_password(password)
-
-    else:
-        # if empty string or None, don't update password
-        update_data.pop("password", None)
-
-    #endregion
 
     result = await collection.find_one_and_update(
         {"_id": ObjectId(id), "isDeleted": {"$ne": True}},
@@ -139,19 +130,16 @@ async def update_user(id: str, user_with_permissions: UserWithPermissionsIn = Bo
         raise HTTPException(status_code=404, detail="User not found")
 
     update_data["id"] = id
-
-    # remove password if present
     update_data = sanitize_user(update_data)
 
-    # attach granted permissions
     user_with_permissions = UserWithPermissionsOut(
         user=UserOut(**stringify_object_ids(update_data)),
-        grantedRoles= await get_roles_by_ids(user_with_permissions.grantedRoles),
+        grantedRoles=await get_roles_by_ids(user_with_permissions.grantedRoles),
         roles=user_with_permissions.roles,
         memberedOrganisationUnits=user_with_permissions.memberedOrganisationUnits,
         allOrganizationUnits=user_with_permissions.allOrganizationUnits,
-        grantedPermissionNames= None,
-        permissions= None
+        grantedPermissionNames=None,
+        permissions=None,
     )
 
     return user_with_permissions

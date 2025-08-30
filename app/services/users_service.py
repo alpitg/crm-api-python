@@ -1,15 +1,84 @@
 from typing import Optional
 from bson import ObjectId
+from fastapi import HTTPException
 from app.db.mongo import db
 from app.schemas.administration.organisation_units.organisation_units import OrganisationUnitOut
-from app.schemas.administration.users.users import UserOut, UserWithPermissionsOut
+from app.schemas.administration.users.users import UserIn, UserOut, UserWithPermissionsOut
 from app.schemas.administration.roles.roles import RoleOut
+from app.utils.auth_utils import generate_random_password, hash_password
 from core.sanitize import sanitize_user, stringify_object_ids
+from fastapi import HTTPException
+from motor.motor_asyncio import AsyncIOMotorCollection
+from bson import ObjectId
+from typing import Dict, Optional
+
 
 # Collections
 users_collection = db["users"]
 roles_collection = db["roles"]
 org_units_collection = db["organisation_units"]
+
+
+def handle_password_logic(user_data: UserIn, is_update: bool = False) -> UserIn:
+    """
+    Handle password logic for both add and update cases.
+    - On create: ensures password is set if provided, or can generate random.
+    - On update: hashes only if provided or setRandomPassword is True.
+    """
+
+    update_data = dict(user_data)  # ✅ safe dict copy
+
+    password: Optional[str] = update_data.get("password")
+    set_random: bool = update_data.get("setRandomPassword", False)
+
+    if set_random:
+        # Always override with random password
+        random_password = generate_random_password()
+        update_data["tempPassword"] = random_password
+        update_data["password"] = hash_password(random_password)
+        update_data["shouldChangePasswordOnNextLogin"] = True
+
+    elif password:
+        # Hash password if provided
+        update_data["password"] = hash_password(password)
+
+    else:
+        # In update mode, don’t overwrite password if not provided
+        if is_update:
+            update_data.pop("password", None)
+        else:
+            # In create mode, allow empty password only if setRandomPassword is True
+            update_data.pop("password", None)
+
+    return update_data
+
+
+async def ensure_unique_user(
+    collection: AsyncIOMotorCollection, 
+    user_data: dict, 
+    exclude_id: str | None = None
+):
+    """
+    Ensure username or email is unique.
+    If exclude_id is given, skip that document during update.
+    """
+    query = {
+        "$or": [
+            {"userName": user_data["userName"]},
+            {"emailAddress": user_data["emailAddress"]}
+        ]
+    }
+
+    if exclude_id and ObjectId.is_valid(exclude_id):
+        query["$and"] = [{"_id": {"$ne": ObjectId(exclude_id)}}]
+
+    existing_user = await collection.find_one(query)
+
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Username or Email already exists"
+        )
 
 
 async def get_user_with_permissions(id: Optional[str]) -> UserWithPermissionsOut:
