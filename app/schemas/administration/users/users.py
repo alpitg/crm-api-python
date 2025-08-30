@@ -58,7 +58,7 @@ class UserWithPermissionsIn(BaseModel):
 
 class UserWithPermissionsOut(BaseModel):
     user: UserOut
-    grantedRoles: List[str] = []
+    grantedRoles: List[RoleOut] = []
     roles: List[RoleOut] = []
     memberedOrganisationUnits: List[str] = []
     allOrganizationUnits: List[OrganisationUnitOut] = []

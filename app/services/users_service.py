@@ -49,6 +49,7 @@ async def get_user_with_permissions(id: Optional[str]) -> UserWithPermissionsOut
         {"$or": [{"isDeleted": {"$exists": False}}, {"isDeleted": False}]}
     )
     all_roles: list[RoleOut] = []
+    grantedRoles: list[RoleOut] = []
 
     async for role_doc in roles_cursor:
         role_doc = stringify_object_ids(role_doc)
@@ -58,13 +59,16 @@ async def get_user_with_permissions(id: Optional[str]) -> UserWithPermissionsOut
         if user_doc and "grantedRoles" in user_doc:
             is_assigned = role_doc["id"] in user_doc.get("grantedRoles", [])
 
-        all_roles.append(
-            RoleOut(
+        role_out = RoleOut(
                 **role_doc,
                 isAssigned=is_assigned,
                 inheritedFromOrganizationUnit=False,
             )
-        )
+
+        if is_assigned:
+            grantedRoles.append(role_out)
+        all_roles.append(role_out)
+
 
     # ---------- fetch all org units ----------
     org_units_cursor = org_units_collection.find(
@@ -81,6 +85,7 @@ async def get_user_with_permissions(id: Optional[str]) -> UserWithPermissionsOut
     return UserWithPermissionsOut(
         user=user_out,
         roles=all_roles,
+        grantedRoles=grantedRoles,
         memberedOrganisationUnits=user_doc.get("memberedOrganisationUnits", []) if user_doc else [],
         allOrganizationUnits=all_org_units,
         grantedPermissionNames=user_doc.get("grantedPermissionNames", []) if user_doc else [],
