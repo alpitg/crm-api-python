@@ -4,7 +4,8 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = ""
     CORS_ORIGINS: str = "http://localhost:5173"
     SECRET_KEY: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30 # minutes
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7 # days
     ALGORITHM: str = "HS256"
     PROJECT_ROOT: str = ""
     

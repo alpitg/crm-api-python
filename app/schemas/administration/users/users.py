@@ -93,3 +93,6 @@ class UpdateUserProfileRequest(BaseModel):
     emailAddress: Optional[str]
     userName: Optional[str]
    
+# AppInitResponse
+class AppInitOut(BaseModel):
+    user: UserWithPermissionsOut

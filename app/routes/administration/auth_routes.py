@@ -1,15 +1,14 @@
 import uuid
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import datetime, timedelta, timezone
 from app.db.mongo import db
 
 from app.schemas.administration.auth_schemas import ForgotPasswordRequest, LoginRequest, ResetPasswordRequest, TokenResponse
-from app.schemas.administration.users.users import ChangePasswordRequest, UpdateUserProfileRequest, UserIn, UserOut
+from app.schemas.administration.users.users import AppInitOut, ChangePasswordRequest, UpdateUserProfileRequest, UserIn, UserOut
 from app.services.users_service import get_user_with_permissions
-from app.utils.auth_utils import create_access_token, hash_password, verify_password
+from app.utils.auth_utils import create_access_token, create_refresh_token, decode_token, get_current_user, hash_password, verify_password
 from core.sanitize import stringify_object_ids
-from app.services.mail_service import send_email
 from config import settings
 
 router = APIRouter()
@@ -37,17 +36,30 @@ async def login(data: LoginRequest):
     if not user.get("isActive", False):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not active")
 
-    token_data = {
-        "sub": str(user["_id"]),
-        "userName": user["userName"],
-    }
+    token_data = {"sub": str(user["_id"]), "email": user["emailAddress"]}
+    access_token = create_access_token(data=token_data)
+    refresh_token = create_refresh_token(token_data)
 
-    access_token = create_access_token(data=token_data, expires_delta=timedelta(minutes=30))
     user_detail = await get_user_with_permissions(user["_id"])
 
-    return {"accessToken": access_token, "tokenType": "bearer", "user": user_detail}
+    return {"accessToken": access_token, "refreshToken": refresh_token, "tokenType": "bearer", "user": user_detail}
+
+# ✅ Refresh token
+@router.post("/refresh")
+async def refresh_token(refresh_token: str):
+    try:
+        payload = decode_token(refresh_token)
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+
+        token_data = {"sub": payload.get("sub"), "email": payload.get("emailAddress")}
+        new_access_token = create_access_token(token_data)
+        return {"accessToken": new_access_token, "tokenType": "bearer"}
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
 
+# ✅ Forgot password
 @router.post("/forgot-password")
 async def forgot_password(data: ForgotPasswordRequest):
     user = await users_collection.find_one({"emailAddress": data.emailAddress})
@@ -139,6 +151,26 @@ async def change_password(id: str, request: ChangePasswordRequest):
     return {"message": "Password updated successfully"}
 
 #region User Profile
+
+# ✅ get all data of user for app initialization
+@router.get("/users/me/app-init", response_model=AppInitOut)
+async def get_all(token_detail: dict = Depends(get_current_user)):
+
+    user_id: str = token_detail.get("sub", "")
+
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user ID")
+
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # user detail
+    user_detail = await get_user_with_permissions(user["_id"])
+
+    return {"user": user_detail}
+
 
 # ✅ Get current user profile
 @router.get("/users/{id}/current-user-profile", response_model=UserOut)
