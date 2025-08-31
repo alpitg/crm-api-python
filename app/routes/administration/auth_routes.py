@@ -36,7 +36,7 @@ async def login(data: LoginRequest):
 
 
 @router.post("/refresh")
-async def refresh_token(refresh_token: str):
+async def refresh_token(refresh_token: str = Body(None, embed=True)):
     try:
         payload = decode_token(refresh_token)
         if payload.get("type") != "refresh":

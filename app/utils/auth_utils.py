@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
-from jose import JWTError, jwt
+from jose import jwt
 from fastapi import status
 
 from config import settings
