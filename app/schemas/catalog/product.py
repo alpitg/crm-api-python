@@ -35,8 +35,8 @@ class Inventory(BaseModel):
         object.__setattr__(self, 'quantity', (self.quantityInShelf or 0) + (self.quantityInWarehouse or 0))
 
 class Variation(BaseModel):
-    name: Literal["color", "size", "material", "style"]
-    values: List[str] = Field(default_factory=list)
+    name: str = None
+    values: str = None
 
 class Shipping(BaseModel):
     isPhysical: bool = True
@@ -66,7 +66,7 @@ class ProductBase(BaseModel):
     price: Optional[Price] = None
     totalWishlistedCount: Optional[float] = None
     inventory: Inventory = Inventory()
-    variations: List[Variation] = Field(default_factory=list)
+    variations: Optional[List[Variation]] = []
     shipping: Shipping = Shipping()
     meta: Meta = Meta()
     scheduling: Scheduling = Scheduling()

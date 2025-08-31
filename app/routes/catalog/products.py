@@ -1,6 +1,5 @@
 from math import ceil
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from typing import Optional
 from datetime import datetime, timezone
 from bson import ObjectId
 
