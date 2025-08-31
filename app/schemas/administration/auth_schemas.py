@@ -10,9 +10,8 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     accessToken: str
+    refreshToken: str
     tokenType: str = "bearer"
-    user: Optional[UserWithPermissionsOut] = None
-
 
 class ForgotPasswordRequest(BaseModel):
     emailAddress: EmailStr

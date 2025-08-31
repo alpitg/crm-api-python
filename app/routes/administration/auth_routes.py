@@ -32,8 +32,7 @@ async def login(data: LoginRequest):
     access_token = create_access_token(data=token_data)
     refresh_token = create_refresh_token(token_data)
 
-    user_detail = await get_user_with_permissions(user["_id"])
-    return {"accessToken": access_token, "refreshToken": refresh_token, "tokenType": "bearer", "user": user_detail}
+    return {"accessToken": access_token, "refreshToken": refresh_token, "tokenType": "bearer"}
 
 
 @router.post("/refresh")
