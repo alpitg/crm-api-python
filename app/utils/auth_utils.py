@@ -38,7 +38,7 @@ def create_refresh_token(data: dict):
 def decode_token(token: str):
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def authenticate(token: str = Depends(oauth2_scheme)):
     try:
         payload = decode_token(token)
         return payload

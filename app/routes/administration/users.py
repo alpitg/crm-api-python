@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 from bson import ObjectId
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from math import ceil
 
 from app.schemas.administration.users.users import (
@@ -14,7 +14,7 @@ from app.schemas.administration.users.users import (
 )
 from app.services.roles_service import get_roles_by_ids
 from app.services.users_service import ensure_unique_user, get_user_with_permissions, handle_password_logic
-from app.utils.auth_utils import generate_random_password, hash_password
+from app.utils.auth_utils import authenticate, generate_random_password, hash_password
 from core.sanitize import sanitize_user, stringify_object_ids
 from app.db.mongo import db
 
@@ -27,7 +27,9 @@ org_units_collection = db["organisation_units"]
 from math import ceil
 from fastapi import Body, APIRouter
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(authenticate)]  # ✅ applies to all routes
+)
 
 # ✅ Get All Users with Pagination ----------
 @router.post("/search", response_model=PaginatedUsersOut)

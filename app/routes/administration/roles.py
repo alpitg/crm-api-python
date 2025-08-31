@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List
 from bson import ObjectId
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from math import ceil
 from app.schemas.administration.roles.roles import (
     GetRolesFilterIn,
@@ -10,11 +10,14 @@ from app.schemas.administration.roles.roles import (
     PaginatedRolesOut,
     RoleWithPermissions,
 )
+from app.utils.auth_utils import authenticate
 from app.utils.generate_unique_id_util import generate_role_code
 from core.sanitize import stringify_object_ids
 from app.db.mongo import db
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(authenticate)]  # ✅ applies to all routes
+)
 collection = db["roles"]
 role_permissions_collection = db["role_permissions"]
 
