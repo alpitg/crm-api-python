@@ -1,12 +1,15 @@
 from math import ceil
 from bson import ObjectId
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from datetime import datetime, timezone
 from app.db.mongo import db
 from app.schemas.customer import CustomerIn, CustomerOut, GetCustomersParams, PaginatedCustomers
+from app.utils.auth_utils import authenticate
 from core.sanitize import stringify_object_ids
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(authenticate)]  # ✅ applies to all routes
+)
 collection = db["customers"]
 
 @router.post("/search", response_model=dict)

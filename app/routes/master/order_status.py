@@ -1,10 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from bson import ObjectId
 from app.db.mongo import db
 from app.schemas.master.order_status import OrderStatusIn, OrderStatusOut
+from app.utils.auth_utils import authenticate
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(authenticate)]  # ✅ applies to all routes
+)
 collection = db["master_order_status"]
 
 # ✅ Get all active order statuses

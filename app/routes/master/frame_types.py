@@ -1,10 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from bson import ObjectId
 from app.db.mongo import db
 from app.schemas.master.frame_type import FrameTypeIn, FrameTypeOut
+from app.utils.auth_utils import authenticate
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(authenticate)]  # ✅ applies to all routes
+)
 collection = db["master_frame_types"]
 
 # ✅ Get all active frame types

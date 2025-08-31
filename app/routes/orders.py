@@ -1,5 +1,5 @@
 from math import ceil
-from fastapi import APIRouter, Body, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from bson import ObjectId
 from datetime import datetime, timezone
 from app.db.mongo import db
@@ -8,10 +8,13 @@ from app.schemas.orders.order_summary import GetOrdersFilterIn, OrderSummaryOut
 from math import ceil
 from fastapi import Body
 from bson import ObjectId
+from app.utils.auth_utils import authenticate
 from app.utils.generate_unique_id_util import generate_order_code
 from core.sanitize import stringify_object_ids
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(authenticate)]  # ✅ applies to all routes
+)
 orders_collection = db["orders"]
 customers_collection = db["customers"]
 invoices_collection = db["invoices"]

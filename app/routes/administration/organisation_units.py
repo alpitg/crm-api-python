@@ -1,13 +1,16 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from math import ceil
 from app.schemas.administration.organisation_units.organisation_units import GetOrganisationUnitsFilterIn, OrganisationUnitIn, OrganisationUnitOut, PaginatedOrganisationUnitsOut
+from app.utils.auth_utils import authenticate
 from core.sanitize import stringify_object_ids
 from app.db.mongo import db
 
 
 # router = APIRouter(prefix="/api/organisation-units", tags=["organisation-units"])
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(authenticate)]  # ✅ applies to all routes
+)
 collection = db["organisation_units"]
 
 

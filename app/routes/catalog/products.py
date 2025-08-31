@@ -1,5 +1,5 @@
 from math import ceil
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from typing import Optional
 from datetime import datetime, timezone
 from bson import ObjectId
@@ -12,12 +12,15 @@ from app.schemas.catalog.product import (
     ProductOut,
     ProductUpdate,
 )
+from app.utils.auth_utils import authenticate
 from app.utils.generate_unique_id_util import generate_product_code
 from core.sanitize import stringify_object_ids
 
 
 # router = APIRouter(prefix="/api/products", tags=["products"])
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(authenticate)]  # ✅ applies to all routes
+)
 collection = db["products"]
 
 # ✅ Get all products with pagination

@@ -1,14 +1,17 @@
 import json
 from pathlib import Path
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from typing import List
 
 from app.schemas.administration.roles.role_permissions import RolePermissionOut
+from app.utils.auth_utils import authenticate
 from config import Settings
 from core.sanitize import stringify_object_ids
 from app.db.mongo import db
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(authenticate)]  # ✅ applies to all routes
+)
 collection = db["role_permissions"]
 
 
