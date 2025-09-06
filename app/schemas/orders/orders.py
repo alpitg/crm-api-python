@@ -48,6 +48,9 @@ class CustomizedDetails(BaseModel):
 # ---------- Order Item ----------
 class OrderItemIn(BaseModel):
     productId: Optional[str] = None
+    productType: Optional[str] = None
+    name: Optional[str] = None
+    description: str = None
     quantity: int = 0
     unitPrice: float = 0.0
     discountedQuantity: int = 0
