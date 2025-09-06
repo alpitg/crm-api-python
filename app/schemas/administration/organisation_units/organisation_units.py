@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel
 
 
@@ -44,3 +44,16 @@ class OrganisationUnitOut(OrganisationUnitIn):
     creationTime: Optional[datetime] = None
     lastModificationTime: Optional[datetime] = None
     lastModifierUserId: Optional[int] = None
+
+
+class  GetOrganizationUnitsParamsAssignRole(GetOrganisationUnitsFilterIn): 
+    isAssigned: bool = None
+
+class AddRolesToOrganisationUnitIn(BaseModel):
+    roleIds: List[str]   
+    organizationUnitId: str
+    
+class DeleteRolesToOrganisationUnitIn(BaseModel):
+    roleId: str  
+    organizationUnitId: str
+    
