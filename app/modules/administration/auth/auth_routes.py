@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from app.db.mongo import db
 
 from app.modules.administration.auth.schemas.auth_schemas import ForgotPasswordRequest, LoginRequest, ResetPasswordRequest, TokenResponse
-from app.modules.administration.user.schemas.users import UserOut
+from app.modules.administration.user.schemas.users import UserIn, UserOut
 from app.modules.administration.user.schemas.users import AppInitOut, ChangePasswordRequest, UpdateUserProfileRequest
 from app.modules.administration.user.services.user_service import get_user_with_permissions
 from app.utils.auth_utils import create_access_token, create_refresh_token, decode_token, authenticate, hash_password, verify_password
