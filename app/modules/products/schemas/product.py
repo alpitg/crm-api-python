@@ -21,24 +21,6 @@ class Deal(BaseModel):
     label: Optional[str] = None
     valid_till: Optional[datetime] = None
 
-class ProductIn(BaseModel):
-    name: str
-    description: Optional[str]
-    status: Literal["active", "draft", "archived"]
-    inventory: int
-    category: str
-    base_cost: float
-    mrp: float
-    price: float
-    totalWishlistedCount: int = 0
-    discount: Optional[Discount] = Discount()
-    deal: Optional[Deal] = Deal()
-    product_type: Literal["simple", "customizable"] = "simple"
-
-    # only store IDs of tax rules
-    tax_rule_ids: List[str] = []
-
-
 # -------- Sub-models --------
 class MediaItem(BaseModel):
     url: Optional[str] = None
@@ -101,6 +83,13 @@ class ProductBase(BaseModel):
     meta: Meta = Meta()
     scheduling: Scheduling = Scheduling()
     rating: Optional[int] = None
+
+    # TODO: implement reviews - implementation pending
+    deal: Optional[Deal] = Deal()
+    totalWishlistedCount: int = 0
+    discount: Optional[Discount] = Discount()
+    tax_rule_ids: List[str] = []  # only store IDs of tax rules
+
 
 class ProductIn(ProductBase):
     pass
