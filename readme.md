@@ -204,3 +204,57 @@ prepare the industry best practice schema in mongo
 }
 
 ```
+
+
+```md
+backend/
+│
+├── app/
+│   ├── __init__.py
+│   ├── main.py                      # FastAPI entrypoint
+│   │
+│   ├── config/                      # environment & config
+│   │   ├── settings.py
+│   │
+│   ├── core/                        # cross-cutting concerns
+│   │   ├── security.py              # JWT/OAuth, etc.
+│   │   ├── middleware.py
+│   │   ├── logging.py
+│   │
+│   ├── db/
+│   │   ├── mongo.py                 # db client init
+│   │
+│   ├── modules/                     # <-- domain modules live here
+│   │   ├── inventory/
+│   │   │   ├── __init__.py
+│   │   │   ├── models.py            # Mongo/ODM models
+│   │   │   ├── schemas.py           # Pydantic in/out
+│   │   │   ├── repository.py        # DB ops
+│   │   │   ├── service.py           # business logic
+│   │   │   ├── routes.py            # FastAPI router
+│   │   │   ├── tests/               # module-specific tests
+│   │   │
+│   │   ├── sales/
+│   │   │   ├── models.py
+│   │   │   ├── schemas.py
+│   │   │   ├── repository.py
+│   │   │   ├── service.py
+│   │   │   ├── routes.py
+│   │   │
+│   │   ├── crm/
+│   │   │   ├── models.py
+│   │   │   ├── schemas.py
+│   │   │   ├── repository.py
+│   │   │   ├── service.py
+│   │   │   ├── routes.py
+│   │
+│   ├── utils/                       # small helpers
+│   │   ├── validators.py
+│   │
+│   └── tests/                       # global tests if needed
+│
+├── requirements.txt
+├── .env
+└── README.md
+
+```
