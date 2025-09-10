@@ -8,7 +8,6 @@ from app.modules.master.tax_rules.schemas.tax_rules import TaxRuleOut
 # -------- Enums / Literals --------
 ProductStatus = Literal["published", "draft", "scheduled", "inactive"]
 DiscountType = Literal["none", "percentage", "fixed"]
-TaxClass = Literal["tax_free", "taxable_goods", "downloadable_product"]
 ProductTemplate = Literal["default", "electronics", "office_stationary", "fashion"]
 
 
@@ -31,8 +30,8 @@ class Price(BaseModel):
     discountType: Optional[DiscountType] = "none"
     discountPercentage: Optional[float] = Field(default=None, ge=0, le=100)
     fixedDiscountedPrice: Optional[float] = Field(default=None, ge=0)
-    taxClass: Optional[TaxClass] = "tax_free"
-    vatPercent: Optional[float] = Field(default=None, ge=0, le=100)
+    taxClass: Optional[str] = "tax_free"
+    taxPercent: Optional[float] = Field(default=None, ge=0, le=100)
 
 class Inventory(BaseModel):
     sku: Optional[str] = None
