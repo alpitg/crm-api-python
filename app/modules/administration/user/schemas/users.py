@@ -16,11 +16,12 @@ class GetUsersFilterIn(BaseModel):
 
 # ---------- User ----------
 class UserIn(BaseModel):
-    userName: str
     name: str
     surname: str
     emailAddress: str
     isEmailConfirmed: bool = False
+    userNameSameAsEmail: Optional[bool] = False
+    userName: str
     password: Optional[str] = None
     gender: Optional[str] = None
     isActive: bool = True
