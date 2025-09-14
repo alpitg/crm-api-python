@@ -22,6 +22,7 @@ class UserIn(BaseModel):
     emailAddress: str
     isEmailConfirmed: bool = False
     password: Optional[str] = None
+    gender: Optional[str] = None
     isActive: bool = True
     phoneNumber: Optional[str] = None
     profilePictureId: Optional[str] = None
