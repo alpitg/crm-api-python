@@ -233,6 +233,7 @@ async def seed_admin_user():
         "surname": "Administrator",
         "emailAddress": admin_email,
         "isEmailConfirmed": True,
+        "gender": None,
         "isActive": True,
         "phoneNumber": None,
         "profilePictureId": None,
