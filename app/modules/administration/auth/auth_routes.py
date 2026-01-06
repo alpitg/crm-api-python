@@ -135,6 +135,7 @@ async def authenticate_profile(id: str, user=Depends(authenticate)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     user_doc = stringify_object_ids(user_doc)
+    return UserOut(**user_doc)
 
 
 @router.put("/users/{id}/current-user-profile", status_code=status.HTTP_200_OK)
