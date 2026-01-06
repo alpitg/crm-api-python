@@ -1,3 +1,10 @@
+###swagger
+
+```shell
+http://127.0.0.1:8000/docs
+```
+
+
 ```shell
 
 python3 -m venv venv

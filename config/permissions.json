@@ -124,6 +124,118 @@
         }
       }
     },
+    "MASTER": {
+      "name": "Pages.Master",
+      "displayName": "Master",
+      "description": "Access to master data",
+      "parentName": "Pages",
+      "isGrantedByDefault": false,
+      "FRAME_TYPES": {
+        "name": "Pages.Master.FrameTypes",
+        "displayName": "Frame Types",
+        "description": "Manage frame types",
+        "parentName": "Pages.Master",
+        "isGrantedByDefault": false,
+        "DETAIL": {
+          "name": "Pages.Master.FrameTypes.Detail",
+          "displayName": "Frame Type Details",
+          "description": "View frame type details",
+          "parentName": "Pages.Master.FrameTypes",
+          "isGrantedByDefault": false
+        },
+        "CREATE": {
+          "name": "Pages.Master.FrameTypes.Create",
+          "displayName": "Create Frame Type",
+          "description": "Create new frame type",
+          "parentName": "Pages.Master.FrameTypes",
+          "isGrantedByDefault": false
+        },
+        "EDIT": {
+          "name": "Pages.Master.FrameTypes.Edit",
+          "displayName": "Edit Frame Type",
+          "description": "Edit frame type",
+          "parentName": "Pages.Master.FrameTypes",
+          "isGrantedByDefault": false
+        },
+        "DELETE": {
+          "name": "Pages.Master.FrameTypes.Delete",
+          "displayName": "Delete Frame Type",
+          "description": "Delete frame type",
+          "parentName": "Pages.Master.FrameTypes",
+          "isGrantedByDefault": false
+        }
+      },
+      "GLASS_TYPES": {
+        "name": "Pages.Master.GlassTypes",
+        "displayName": "Glass Types",
+        "description": "Manage glass types",
+        "parentName": "Pages.Master",
+        "isGrantedByDefault": false,
+        "DETAIL": {
+          "name": "Pages.Master.GlassTypes.Detail",
+          "displayName": "Glass Type Details",
+          "description": "View glass type details",
+          "parentName": "Pages.Master.GlassTypes",
+          "isGrantedByDefault": false
+        },
+        "CREATE": {
+          "name": "Pages.Master.GlassTypes.Create",
+          "displayName": "Create Glass Type",
+          "description": "Create new glass type",
+          "parentName": "Pages.Master.GlassTypes",
+          "isGrantedByDefault": false
+        },
+        "EDIT": {
+          "name": "Pages.Master.GlassTypes.Edit",
+          "displayName": "Edit Glass Type",
+          "description": "Edit glass type",
+          "parentName": "Pages.Master.GlassTypes",
+          "isGrantedByDefault": false
+        },
+        "DELETE": {
+          "name": "Pages.Master.GlassTypes.Delete",
+          "displayName": "Delete Glass Type",
+          "description": "Delete glass type",
+          "parentName": "Pages.Master.GlassTypes",
+          "isGrantedByDefault": false
+        }
+      },
+      "MISC_CHARGES": {
+        "name": "Pages.Master.MiscCharges",
+        "displayName": "Misc Charges",
+        "description": "Manage miscellaneous charges",
+        "parentName": "Pages.Master",
+        "isGrantedByDefault": false,
+        "DETAIL": {
+          "name": "Pages.Master.MiscCharges.Detail",
+          "displayName": "Misc Charge Details",
+          "description": "View miscellaneous charge details",
+          "parentName": "Pages.Master.MiscCharges",
+          "isGrantedByDefault": false
+        },
+        "CREATE": {
+          "name": "Pages.Master.MiscCharges.Create",
+          "displayName": "Create Misc Charge",
+          "description": "Create new miscellaneous charge",
+          "parentName": "Pages.Master.MiscCharges",
+          "isGrantedByDefault": false
+        },
+        "EDIT": {
+          "name": "Pages.Master.MiscCharges.Edit",
+          "displayName": "Edit Misc Charge",
+          "description": "Edit miscellaneous charge",
+          "parentName": "Pages.Master.MiscCharges",
+          "isGrantedByDefault": false
+        },
+        "DELETE": {
+          "name": "Pages.Master.MiscCharges.Delete",
+          "displayName": "Delete Misc Charge",
+          "description": "Delete miscellaneous charge",
+          "parentName": "Pages.Master.MiscCharges",
+          "isGrantedByDefault": false
+        }
+      }
+    },
     "CATALOG": {
       "name": "Pages.Catalog",
       "displayName": "Catalog",
