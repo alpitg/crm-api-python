@@ -54,8 +54,8 @@ my-crm-app/
 
 - If mongo already installed the use the below command to run the server
 ```shell
+# run this command to start the mongo
 sudo mongod --dbpath=/Users/alpitg/data/db
-
 # pass: 1995
 ```
 

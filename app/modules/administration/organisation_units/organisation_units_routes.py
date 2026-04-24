@@ -236,3 +236,63 @@ async def remove_role_from_organisation_unit(payload: DeleteRolesToOrganisationU
         "message": f"Roles successfully removed from organisation unit",
         "items": []
     }
+
+# ✅ Delete an organisation unit
+@router.delete("/{org_unit_id}")
+async def delete_organisation_unit(org_unit_id: str):
+    """
+    Delete an organisation unit by ID
+    
+    Args:
+        org_unit_id: The ID of the organisation unit to delete
+    
+    Returns:
+        dict: Success message
+    
+    Raises:
+        HTTPException: 400 if invalid ID, 404 if not found, 500 on error
+    """
+    try:
+        # Validate ObjectId format
+        if not ObjectId.is_valid(org_unit_id):
+            raise HTTPException(status_code=400, detail="Invalid organisation unit ID")
+        
+        # Find the organisation unit
+        org_unit = await collection.find_one({"_id": ObjectId(org_unit_id)})
+        
+        if not org_unit:
+            raise HTTPException(status_code=404, detail=f"Organisation unit with ID '{org_unit_id}' not found")
+        
+        # Optional: Check if organisation unit has members/roles before deletion
+        # role_count = await roles_collection.count_documents(
+        #     {"organisationUnitIds": org_unit_id, "isDeleted": {"$ne": True}}
+        # )
+        # if role_count > 0:
+        #     raise HTTPException(
+        #         status_code=400, 
+        #         detail=f"Cannot delete organisation unit with {role_count} role(s)"
+        #     )
+        
+        org_unit_name = org_unit.get("displayName") or org_unit.get("name") or "Unknown"
+        
+        # Delete the organisation unit
+        result = await collection.delete_one({"_id": ObjectId(org_unit_id)})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=500, detail="Failed to delete organisation unit")
+        
+        return {
+            "success": True,
+            "message": f"Organisation unit '{org_unit_name}' deleted successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error deleting organisation unit {org_unit_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail="An error occurred while deleting the organisation unit"
+        )
