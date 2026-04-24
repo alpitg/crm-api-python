@@ -89,7 +89,7 @@ class OrderOut(OrderIn):
 
 class OrderWithInvoiceIn(BaseModel):
     order: OrderIn
-    invoice: InvoiceIn
+    invoice: Optional[InvoiceIn] = None
 
     @model_validator(mode="before")
     def sanitize_empty_strings(cls, values):

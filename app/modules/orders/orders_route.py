@@ -1,10 +1,11 @@
 from math import ceil
+from typing import Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from bson import ObjectId
 from datetime import datetime, timezone
 from app.db.mongo import db
 from app.modules.orders.schemas.orders import OrderDetailOut, OrderIn, OrderOut, OrderWithInvoiceIn, OrderWithInvoiceOut
-from app.modules.orders.schemas.order_summary import GetOrdersFilterIn, OrderSummaryOut
+from app.modules.orders.schemas.order_summary import GetOrdersFilterIn, OrderSummaryOut, PaginatedOrdersOut
 from math import ceil
 from fastapi import Body
 from bson import ObjectId
@@ -81,6 +82,72 @@ async def get_orders(filters: GetOrdersFilterIn = Body(...)):
         "page": filters.page,
         "pageSize": filters.pageSize,
         "pages": ceil(total_orders / filters.pageSize) if total_orders > 0 else 1,
+        "items": orders_summary
+    }
+
+@router.get("/", response_model=PaginatedOrdersOut)
+async def list_orders(
+    status: Optional[str] = None,
+    invoiceId: Optional[str] = None,
+    page: int = 1,
+    pageSize: int = 10,
+    sort: Optional[str] = "newest"
+):
+    skip = (page - 1) * pageSize
+
+    query = {}
+    if status:
+        normalized_status = status.lower()
+        if normalized_status == "completed":
+            normalized_status = "fulfilled"
+        query["orderStatus"] = normalized_status
+
+    if invoiceId is not None:
+        if invoiceId.lower() == "null":
+            query["invoiceId"] = {"$exists": False}
+        else:
+            query["invoiceId"] = invoiceId
+
+    total_orders = await orders_collection.count_documents(query)
+
+    orders_summary = []
+    cursor = (
+        orders_collection
+        .find(query)
+        .sort("createdAt", -1 if sort == "newest" else 1)
+        .skip(skip)
+        .limit(pageSize)
+    )
+
+    async for order in cursor:
+        customer = None
+        if order.get("customerId") and ObjectId.is_valid(order["customerId"]):
+            customer = await customers_collection.find_one({"_id": ObjectId(order["customerId"])})
+        if not customer:
+            customer = {"name": order.get("customerName", "")}
+
+        invoice = await invoices_collection.find({"orderIds": order["_id"]})                                            .sort("createdAt", -1)                                            .to_list(length=1)
+        invoice = invoice[0] if invoice else None
+        payment_status = invoice.get("paymentStatus", "pending") if invoice else "pending"
+
+        orders_summary.append(
+            OrderSummaryOut(
+                id=str(order["_id"]),
+                orderCode=order.get("orderCode", ""),
+                customerName=customer.get("name", ""),
+                createdAt=order.get("createdAt"),
+                itemCount=len(order.get("items", [])),
+                paymentStatus=payment_status,
+                total=order.get("totalAmount", 0.0),
+                orderStatus=order.get("orderStatus", "pending"),
+            )
+        )
+
+    return {
+        "total": total_orders,
+        "page": page,
+        "pageSize": pageSize,
+        "pages": ceil(total_orders / pageSize) if total_orders > 0 else 1,
         "items": orders_summary
     }
 
@@ -270,7 +337,7 @@ async def update_order(order_id: str, payload: OrderWithInvoiceIn):
                 await invoices_collection.update_one(
                     {"_id": ObjectId(existing_order["invoiceId"])},
                     {"$set": {
-                        "billTo": invoice_data.billTo,
+                        "billTo": invoice_data.billTo.model_dump() if hasattr(invoice_data.billTo, "model_dump") else invoice_data.billTo,
                         "paymentMode": invoice_data.paymentMode,
                         "totalAmount": total_amount,
                         "advancePaid": invoice_data.advancePaid,
@@ -303,4 +370,4 @@ async def update_order(order_id: str, payload: OrderWithInvoiceIn):
     # --- Step 5: Prepare Response ---
     updated_order = await orders_collection.find_one({"_id": ObjectId(order_id)})
     
-    return True
+    return stringify_object_ids(updated_order)

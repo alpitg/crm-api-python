@@ -14,6 +14,7 @@ from app.modules.master.order_status import order_status_routes
 from app.modules.orders import orders_route
 from app.modules.administration import ping
 from app.modules.products import products_route
+from app.modules.invoice import invoice_routes
 
 def setup_router(app: FastAPI) -> None:
     """
@@ -33,6 +34,10 @@ def setup_router(app: FastAPI) -> None:
     app.include_router(products_route.router, prefix="/api/products", tags=["Products"])
     app.include_router(customer_route.router, prefix="/api/customer", tags=["Customer"])
     app.include_router(orders_route.router, prefix="/api/orders", tags=["Orders"])
+    #endregion
+
+    #region Invoice
+    app.include_router(invoice_routes.router, prefix="/api/invoices", tags=["Invoices"])
     #endregion
 
 
