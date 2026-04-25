@@ -32,8 +32,13 @@ async def create_invoice(
             gstin="GSTIN123456"
         )
 
-        # Get billTo from orders (first order's customer)
-        order_ids = [ObjectId(oid) for oid in request.orderIds]
+        # Validate order IDs and get billTo from orders (first order's customer)
+        order_ids = []
+        for oid in request.orderIds:
+            if not ObjectId.is_valid(oid):
+                raise HTTPException(status_code=400, detail=f"Invalid orderId: {oid}")
+            order_ids.append(ObjectId(oid))
+
         from app.db.mongo import db
         first_order = await db["orders"].find_one({"_id": {"$in": order_ids}})
         if not first_order:
@@ -64,8 +69,7 @@ async def create_invoice(
 
 @router.get("/{invoice_id}", response_model=InvoiceOut)
 async def get_invoice(
-    invoice_id: str,
-    current_user: dict = Depends(authenticate)
+    invoice_id: str
 ):
     """Get invoice by ID"""
     try:
@@ -81,8 +85,7 @@ async def list_invoices(
     customerId: Optional[str] = None,
     paymentStatus: Optional[str] = None,
     limit: int = 10,
-    offset: int = 0,
-    current_user: dict = Depends(authenticate)
+    offset: int = 0
 ):
     """List invoices with filters"""
     try:

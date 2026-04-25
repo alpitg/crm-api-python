@@ -7,6 +7,7 @@ import math
 from app.db.mongo import db
 from app.modules.orders.schemas.invoice import InvoiceIn, InvoiceOut, InvoiceItem, PartyDetails
 from app.modules.orders.schemas.orders import OrderIn, OrderItemIn
+from core.sanitize import stringify_object_ids
 
 # Collections
 invoices_collection: AsyncIOMotorCollection = db["invoices"]
@@ -75,16 +76,27 @@ class InvoiceService:
         first_order = orders[0]
         customer_id = first_order.get("customerId")
 
-        # For billTo, we might need to fetch customer details
-        # Assuming customer collection exists
-        customer = await db["customers"].find_one({"_id": ObjectId(customer_id)})
-        bill_to = PartyDetails(
-            name=customer.get("name", ""),
-            address=customer.get("address", ""),
-            phone=customer.get("phone", ""),
-            email=customer.get("email", ""),
-            gstin=customer.get("gstin")
-        )
+        # For billTo, fetch customer details if available, otherwise fall back to order fields
+        customer = None
+        if customer_id and ObjectId.is_valid(str(customer_id)):
+            customer = await db["customers"].find_one({"_id": ObjectId(customer_id)})
+
+        if customer:
+            bill_to = PartyDetails(
+                name=customer.get("name", ""),
+                address=customer.get("address", ""),
+                phone=customer.get("phone", ""),
+                email=customer.get("email", ""),
+                gstin=customer.get("gstin")
+            )
+        else:
+            bill_to = PartyDetails(
+                name=first_order.get("customerName") or "Unknown Customer",
+                address=first_order.get("customerAddress", "") if isinstance(first_order.get("customerAddress"), str) else "",
+                phone=first_order.get("customerPhone", "") if isinstance(first_order.get("customerPhone"), str) else "",
+                email=first_order.get("customerEmail", "") if isinstance(first_order.get("customerEmail"), str) else "",
+                gstin=""
+            )
 
         # Aggregate items from all orders
         all_items: List[InvoiceItem] = []
@@ -158,7 +170,8 @@ class InvoiceService:
 
         # Insert invoice
         result = await invoices_collection.insert_one(invoice_doc)
-        invoice_doc["_id"] = result.inserted_id
+        invoice_doc["id"] = str(result.inserted_id)
+        invoice_doc.pop("_id", None)
 
         # Update orders with invoiceId
         await orders_collection.update_many(
@@ -173,11 +186,12 @@ class InvoiceService:
         """Get invoice by ID"""
         invoice = await invoices_collection.find_one({"_id": ObjectId(invoice_id)})
         if invoice:
+            invoice = stringify_object_ids(invoice)
             return InvoiceOut(**invoice)
         return None
 
     @staticmethod
-    async def list_invoices(filters: Dict[str, Any], limit: int = 10, offset: int = 0) -> List[InvoiceOut]:
+    async def list_invoices(filters: Dict[str, Any], limit: int = 10, offset: int = 0) -> Optional[List[InvoiceOut]]:
         """List invoices with filters"""
         query = {}
 
@@ -198,7 +212,7 @@ class InvoiceService:
             query["billDate"] = date_query
 
         invoices = await invoices_collection.find(query).skip(offset).limit(limit).sort("createdAt", -1).to_list(None)
-        return [InvoiceOut(**inv) for inv in invoices]
+        return [InvoiceOut(**stringify_object_ids(inv)) for inv in invoices]
 
     @staticmethod
     async def update_payment(invoice_id: str, update_data: Dict[str, Any]) -> Optional[InvoiceOut]:
@@ -230,5 +244,5 @@ class InvoiceService:
         )
 
         if result:
-            return InvoiceOut(**result)
+            return InvoiceOut(**stringify_object_ids(result))
         return None

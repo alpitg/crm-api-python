@@ -46,23 +46,23 @@ class InvoiceIn(BaseModel):
 
 # Invoice Output
 class InvoiceOut(BaseModel):
-    id: str
-    invoiceNumber: str
-    billDate: datetime
-    billFrom: PartyDetails
-    billTo: PartyDetails
-    orderIds: List[str]
-    items: List[InvoiceItem]
-    subtotal: float
-    discountAmount: float
-    taxAmount: float
-    totalAmount: float
-    advancePaid: float
-    balanceAmount: float
-    paymentMode: str
+    id: Optional[str] = None
+    invoiceNumber: Optional[str] = None
+    # billDate: datetime
+    billFrom: Optional[PartyDetails] = None
+    billTo: Optional[PartyDetails] = None
+    orderIds: Optional[List[str]] = None
+    items: Optional[List[InvoiceItem]] = None
+    subtotal: float = 0.0
+    discountAmount: float = 0.0
+    taxAmount: float = 0.0
+    totalAmount: float = 0.0
+    advancePaid: float = 0.0
+    balanceAmount: float = 0.0
+    paymentMode: str 
     paymentStatus: str  # pending, partial, paid
-    createdAt: datetime
-    updatedAt: datetime
+    # createdAt: datetime
+    # updatedAt: datetime
 
 # For creating invoice
 class CreateInvoiceRequest(BaseModel):
