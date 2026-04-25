@@ -82,3 +82,11 @@ class InvoiceListFilters(BaseModel):
     endDate: Optional[datetime] = None
     limit: int = 10
     offset: int = 0
+
+# For listing invoices response with pagination
+class InvoiceListResponse(BaseModel):
+    invoices: List[InvoiceOut]
+    total: int
+    page: int
+    limit: int
+    pages: int

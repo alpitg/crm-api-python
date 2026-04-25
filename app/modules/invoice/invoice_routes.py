@@ -4,7 +4,7 @@ from typing import List, Optional
 from bson import ObjectId
 
 from app.modules.orders.schemas.invoice import (
-    CreateInvoiceRequest, InvoiceOut, UpdatePaymentRequest, InvoiceListFilters
+    CreateInvoiceRequest, InvoiceOut, UpdatePaymentRequest, InvoiceListFilters, InvoiceListResponse
 )
 from app.modules.invoice.invoice_service import InvoiceService
 from app.modules.invoice.pdf_service import PDFService
@@ -78,23 +78,33 @@ async def get_invoice(
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/", response_model=List[InvoiceOut])
+@router.get("/", response_model=InvoiceListResponse)
 async def list_invoices(
+    search: Optional[str] = None,
     customerId: Optional[str] = None,
     paymentStatus: Optional[str] = None,
-    limit: int = 10,
-    offset: int = 0
+    page: int = 1,
+    limit: int = 10
 ):
-    """List invoices with filters"""
+    """List invoices with filters and pagination"""
     try:
-        filters = {}
-        if customerId:
-            filters["customerId"] = customerId
-        if paymentStatus:
-            filters["paymentStatus"] = paymentStatus
+        offset = (page - 1) * limit
+        filters = {
+            "search": search,
+            "customerId": customerId,
+            "paymentStatus": paymentStatus
+        }
 
-        invoices = await InvoiceService.list_invoices(filters, limit, offset)
-        return invoices
+        invoices, total = await InvoiceService.list_invoices(filters, limit, offset)
+        pages = (total + limit - 1) // limit  # Ceiling division
+
+        return InvoiceListResponse(
+            invoices=invoices,
+            total=total,
+            page=page,
+            limit=limit,
+            pages=pages
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
 

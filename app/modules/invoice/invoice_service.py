@@ -191,9 +191,13 @@ class InvoiceService:
         return None
 
     @staticmethod
-    async def list_invoices(filters: Dict[str, Any], limit: int = 10, offset: int = 0) -> Optional[List[InvoiceOut]]:
-        """List invoices with filters"""
+    async def list_invoices(filters: Dict[str, Any], limit: int = 10, offset: int = 0) -> tuple[List[InvoiceOut], int]:
+        """List invoices with filters and return total count"""
         query = {}
+
+        # Search by invoice number
+        if filters.get("search"):
+            query["invoiceNumber"] = {"$regex": filters["search"], "$options": "i"}
 
         if filters.get("customerId"):
             # Find orders by customer, then invoices
@@ -211,8 +215,12 @@ class InvoiceService:
                 date_query["$lte"] = filters["endDate"]
             query["billDate"] = date_query
 
+        # Get total count
+        total = await invoices_collection.count_documents(query)
+
+        # Get invoices
         invoices = await invoices_collection.find(query).skip(offset).limit(limit).sort("createdAt", -1).to_list(None)
-        return [InvoiceOut(**stringify_object_ids(inv)) for inv in invoices]
+        return [InvoiceOut(**stringify_object_ids(inv)) for inv in invoices], total
 
     @staticmethod
     async def update_payment(invoice_id: str, update_data: Dict[str, Any]) -> Optional[InvoiceOut]:
