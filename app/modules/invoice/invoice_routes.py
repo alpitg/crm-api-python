@@ -101,8 +101,7 @@ async def list_invoices(
 @router.put("/{invoice_id}/payment", response_model=InvoiceOut)
 async def update_payment(
     invoice_id: str,
-    request: UpdatePaymentRequest,
-    current_user: dict = Depends(authenticate)
+    request: UpdatePaymentRequest
 ):
     """Update payment details"""
     try:
