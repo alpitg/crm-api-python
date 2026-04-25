@@ -261,14 +261,13 @@ async def place_order(payload: OrderWithInvoiceIn):
             **invoice_doc
         }
 
-        # Update the inserted order with this invoiceId
-        await orders_collection.update_one(
-            {"_id": order_id},
-            {"$set": {"invoiceId": invoice_id_str}}
-        )
-
+        # # Update the inserted order with this invoiceId
+        # await orders_collection.update_one(
+        #     {"_id": order_id},
+        #     {"$set": {"invoiceId": invoice_id_str}}
+        # )
         # Also update the order_doc for return
-        order_doc["invoiceId"] = invoice_id_str
+        # order_doc["invoiceId"] = invoice_id_str
 
 
     order_doc["id" ] = str(order_id)
