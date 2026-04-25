@@ -30,7 +30,7 @@ class PDFService:
 
         # Invoice details
         invoice_info = [
-            [f"Invoice Number: {invoice.invoiceNumber}", f"Date: {invoice.billDate.strftime('%d/%m/%Y')}"],
+            [f"Invoice Number: {invoice.invoiceNumber}", f"Date: {datetime.now().strftime('%Y-%m-%d')}"],
             [f"Payment Status: {invoice.paymentStatus.upper()}", f"Payment Mode: {invoice.paymentMode}"]
         ]
 
