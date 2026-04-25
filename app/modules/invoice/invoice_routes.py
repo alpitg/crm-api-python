@@ -14,8 +14,7 @@ router = APIRouter()
 
 @router.post("/", response_model=InvoiceOut)
 async def create_invoice(
-    request: CreateInvoiceRequest,
-    current_user: dict = Depends(authenticate)
+    request: CreateInvoiceRequest
 ):
     """Create invoice from selected orders"""
     try:
@@ -44,13 +43,12 @@ async def create_invoice(
         if not first_order:
             raise HTTPException(status_code=404, detail="Orders not found")
 
-        customer = await db["customers"].find_one({"_id": ObjectId(first_order["customerId"])})
         bill_to = PartyDetails(
-            name=customer.get("name", ""),
-            address=customer.get("address", ""),
-            phone=customer.get("phone", ""),
-            email=customer.get("email", ""),
-            gstin=customer.get("gstin")
+            name=first_order.get("customerName", ""),
+            address=first_order.get("customerAddress", ""),
+            phone=first_order.get("customerPhone", ""),
+            email=None,
+            gstin= None
         )
 
         invoice_data = InvoiceIn(
@@ -118,8 +116,7 @@ async def update_payment(
 
 @router.get("/{invoice_id}/pdf")
 async def download_invoice_pdf(
-    invoice_id: str,
-    current_user: dict = Depends(authenticate)
+    invoice_id: str
 ):
     """Download invoice as PDF"""
     try:
