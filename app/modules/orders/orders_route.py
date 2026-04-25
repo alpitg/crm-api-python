@@ -98,13 +98,13 @@ async def list_orders(
     query = {}
     if status:
         normalized_status = status.lower()
-        if normalized_status == "completed":
+        if normalized_status in ["completed", "complete"]:
             normalized_status = "fulfilled"
         query["orderStatus"] = normalized_status
 
     if invoiceId is not None:
         if invoiceId.lower() == "null":
-            query["invoiceId"] = {"$exists": False}
+            query["invoiceId"] = None
         else:
             query["invoiceId"] = invoiceId
 
