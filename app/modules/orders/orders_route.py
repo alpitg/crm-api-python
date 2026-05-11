@@ -328,43 +328,43 @@ async def update_order(order_id: str, payload: OrderWithInvoiceIn):
     )
 
     # --- Step 4: Handle Invoice Logic ---
-    created_invoice = None
-    if invoice_data:
-        if invoice_data.generateInvoice:
-            # If invoice exists, update it; else create new
-            if existing_order.get("invoiceId"):
-                await invoices_collection.update_one(
-                    {"_id": ObjectId(existing_order["invoiceId"])},
-                    {"$set": {
-                        "billTo": invoice_data.billTo.model_dump() if hasattr(invoice_data.billTo, "model_dump") else invoice_data.billTo,
-                        "paymentMode": invoice_data.paymentMode,
-                        "totalAmount": total_amount,
-                        "advancePaid": invoice_data.advancePaid,
-                        "balanceAmount": total_amount - invoice_data.advancePaid,
-                        "updatedAt": datetime.now(timezone.utc)
-                    }}
-                )
-            else:
-                invoice_doc = invoice_data.model_dump()
-                invoice_doc.update({
-                    "orderIds": [ObjectId(order_id)],
-                    "totalAmount": total_amount,
-                    "advancePaid": invoice_data.advancePaid,
-                    "balanceAmount": total_amount - invoice_data.advancePaid,
-                    "createdAt": datetime.now(timezone.utc)
-                })
+    # created_invoice = None
+    # if invoice_data:
+    #     if invoice_data.generateInvoice:
+    #         # If invoice exists, update it; else create new
+    #         if existing_order.get("invoiceId"):
+    #             await invoices_collection.update_one(
+    #                 {"_id": ObjectId(existing_order["invoiceId"])},
+    #                 {"$set": {
+    #                     "billTo": invoice_data.billTo.model_dump() if hasattr(invoice_data.billTo, "model_dump") else invoice_data.billTo,
+    #                     "paymentMode": invoice_data.paymentMode,
+    #                     "totalAmount": total_amount,
+    #                     "advancePaid": invoice_data.advancePaid,
+    #                     "balanceAmount": total_amount - invoice_data.advancePaid,
+    #                     "updatedAt": datetime.now(timezone.utc)
+    #                 }}
+    #             )
+    #         else:
+    #             invoice_doc = invoice_data.model_dump()
+    #             invoice_doc.update({
+    #                 "orderIds": [ObjectId(order_id)],
+    #                 "totalAmount": total_amount,
+    #                 "advancePaid": invoice_data.advancePaid,
+    #                 "balanceAmount": total_amount - invoice_data.advancePaid,
+    #                 "createdAt": datetime.now(timezone.utc)
+    #             })
 
-                invoice_result = await invoices_collection.insert_one(invoice_doc)
-                if not invoice_result.inserted_id:
-                    raise HTTPException(status_code=500, detail="Failed to create invoice")
-                await orders_collection.update_one(
-                    {"_id": ObjectId(order_id)},
-                    {"$set": {"invoiceId": str(invoice_result.inserted_id)}}
-                )
-                created_invoice = {
-                    "_id": str(invoice_result.inserted_id),
-                    **invoice_doc
-                }
+    #             invoice_result = await invoices_collection.insert_one(invoice_doc)
+    #             if not invoice_result.inserted_id:
+    #                 raise HTTPException(status_code=500, detail="Failed to create invoice")
+    #             await orders_collection.update_one(
+    #                 {"_id": ObjectId(order_id)},
+    #                 {"$set": {"invoiceId": str(invoice_result.inserted_id)}}
+    #             )
+    #             created_invoice = {
+    #                 "_id": str(invoice_result.inserted_id),
+    #                 **invoice_doc
+    #             }
 
     # --- Step 5: Prepare Response ---
     updated_order = await orders_collection.find_one({"_id": ObjectId(order_id)})
