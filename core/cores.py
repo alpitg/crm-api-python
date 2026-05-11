@@ -1,12 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from config import settings
 
 def setup_cors(app: FastAPI) -> None:
-    origins = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        # Add staging/prod frontends here
-    ]
+    origins = settings.cors_origins_list
 
     app.add_middleware(
         CORSMiddleware,

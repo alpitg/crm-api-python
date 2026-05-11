@@ -1,8 +1,16 @@
+from typing import List
+
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     FRONTEND_URL: str = ""
     CORS_ORIGINS: str = "http://localhost:5173"
+
+    @property
+    def cors_origins_list(self) -> List[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+
+
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30 # minutes
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7 # days
