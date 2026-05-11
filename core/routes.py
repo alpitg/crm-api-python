@@ -22,6 +22,10 @@ def setup_router(app: FastAPI) -> None:
     """
     app.include_router(ping.router, prefix="/api/ping")
 
+    #region Meal Planner
+    from app.modules.meal_planner import meal_planner_routes
+    app.include_router(meal_planner_routes.router, prefix="/api/meal-planner", tags=["Meal Planner"])
+
     #region Administration
     app.include_router(auth_routes.router, prefix="/api/auth", tags=["Auth"])
     app.include_router(organisation_units_routes.router, prefix="/api/organization-units", tags=["Organization Units"])

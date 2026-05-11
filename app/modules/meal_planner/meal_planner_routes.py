@@ -8,13 +8,11 @@ from app.modules.meal_planner.schemas.meal_planner import MealRequestIn, MealOut
 
 
 router = APIRouter(
-    prefix="/api/meal-request",
-    tags=["meal-request"],
     # dependencies=[Depends(authenticate)],
 )
 
 @router.post(
-    "/",
+    "/meal-request",
     response_model=List[MealOut],
 )
 async def create_meal_request(payload: MealRequestIn):

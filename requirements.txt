@@ -1,6 +1,7 @@
 # Core framework
 fastapi
 uvicorn
+passlib[bcrypt]
 
 # Database (Async MongoDB)
 motor
