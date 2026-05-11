@@ -10,7 +10,7 @@ from app.modules.meal_planner.schemas.meal_planner import MealRequestIn, MealOut
 router = APIRouter(
     prefix="/api/meal-request",
     tags=["meal-request"],
-    dependencies=[Depends(authenticate)],
+    # dependencies=[Depends(authenticate)],
 )
 
 @router.post(
