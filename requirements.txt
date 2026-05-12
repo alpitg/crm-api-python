@@ -3,6 +3,8 @@ fastapi
 uvicorn
 python-jose[cryptography]
 passlib[bcrypt]
+openai
+# python-dotenv
 
 # Database (Async MongoDB)
 motor

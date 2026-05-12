@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7 # days
     ALGORITHM: str = "HS256"
     PROJECT_ROOT: str = ""
+    OPENAI_API_KEY: str = ""
     
     class Config:
         env_file = ".env"
