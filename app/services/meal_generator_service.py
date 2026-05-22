@@ -135,7 +135,10 @@ JSON format:
       "2 green chillies"
     ],
     "youtubeLink": [
-      "https://www.youtube.com/results?search_query=moong+dal+chilla+recipe"
+     {
+        "title": "Moong Dal Chilla Recipe",
+        "url": "https://www.youtube.com/results?search_query=moong+dal+chilla+recipe"
+     }
     ]
   }
 ]

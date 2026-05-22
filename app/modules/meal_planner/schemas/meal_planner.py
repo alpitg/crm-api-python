@@ -31,6 +31,10 @@ class MealRequestIn(BaseModel):
 # Response Models
 # =========================================================
 
+class YoutubeLinkOut(BaseModel):
+    title: str
+    url: str
+
 class MealOut(BaseModel):
     name: str
     type: str
@@ -38,5 +42,5 @@ class MealOut(BaseModel):
     cookingTime: int
     ingredients: List[str]
     recipe: Optional[List[str]] = None
-    youtubeLink: Optional[List[str]] = None
+    youtubeLink: Optional[List[YoutubeLinkOut]] = None
 
