@@ -22,24 +22,21 @@ Return STRICT JSON only.
 Do not return markdown.
 Do not include explanations, notes, or extra text.
 
+You MUST follow the exact JSON schema. No extra keys are allowed.
+
 Generate:
 - Breakfast
 - Lunch
 - Dinner
 
-CRITICAL HARD RULE (MUST FOLLOW):
+CRITICAL HARD RULE (NON-NEGOTIABLE):
 - The final meal plan MUST include AT LEAST 1 chilla dish per day.
-- A chilla can appear in Breakfast, Lunch, or Dinner.
-- Acceptable chillas:
-  - Moong dal chilla
-  - Besan chilla
-  - Oats chilla
-  - Palak chilla
-  - Paneer chilla
-  - Sprouts chilla
+- Chilla can appear in any meal.
+- Allowed chillas:
+  Moong dal chilla, Besan chilla, Oats chilla, Palak chilla, Paneer chilla, Sprouts chilla
 
-If no chilla is included:
-→ The response is INVALID.
+VALIDATION RULE:
+- If no chilla is included → regenerate the entire response until valid.
 
 Core Requirements:
 1. Respect region preference.
@@ -52,15 +49,17 @@ Core Requirements:
 8. Avoid repeating meals or ingredients excessively.
 9. Prefer balanced meals with protein, fiber, and vegetables.
 
-Healthy Food Preference Rules:
-- Strongly prefer:
-  Chillas, Paneer dishes, Vegetables, Sprouts, Dal, Millet meals, Oats, Poha, Upma, Idli, Dosa, Khichdi, Parathas, Curd-based meals
+YouTube Rules (STRICT):
+- Each meal MUST contain 1 to 3 YouTube objects.
+- youtubeLink MUST NEVER be empty.
+- Each object MUST include:
+  - title (mandatory)
+  - url (mandatory)
+- If exact video is unknown, use YouTube search URL.
 
-Breakfast Preference:
-- Moong dal chilla, besan chilla, oats chilla, palak chilla, paneer chilla, poha, upma, idli, dosa, sprouts, egg bhurji
-
-Lunch/Dinner Preference:
-- Paneer, dal, sabzi, roti, rice, khichdi, pulao, curd, salad
+Healthy Preference:
+Strongly prefer:
+Chillas, Paneer dishes, Vegetables, Sprouts, Dal, Millet meals, Oats, Poha, Upma, Idli, Dosa, Khichdi, Parathas, Curd-based meals
 
 High Protein Rules:
 If highProtein=true:
@@ -80,38 +79,19 @@ Use simple steps
 If maidModeEnabled=true:
 Include prep tips (soaking, chopping, marination)
 
-YouTube Rules:
-- Use real YouTube search URLs (preferred) or likely video URLs.
-- If unsure of exact video, ALWAYS use search URL.
-- Create meaningful titles like:
-  "Moong Dal Chilla Recipe | Healthy Breakfast"
-  "Paneer Bhurji Quick Recipe | Indian Protein Meal"
-- Ensure titles match the dish exactly.
-
-Format Example for YouTube (STRICT):
-"youtubeLink": [
-  {
-    "title": "Moong Dal Chilla Recipe | Healthy Breakfast",
-    "url": "https://www.youtube.com/results?search_query=moong+dal+chilla+recipe"
-  },
-  {
-    "title": "Easy Moong Dal Cheela Step by Step",
-    "url": "https://www.youtube.com/results?search_query=moong+dal+chilla"
-  }
-]
-
-JSON FORMAT:
+OUTPUT FORMAT (STRICT JSON):
 [
   {
-    "name": "Meal Name",
+    "name": "string",
     "type": "Breakfast | Lunch | Dinner",
-    "servings": 2,
-    "cookingTime": 20,
-    "ingredients": ["..."],
+    "servings": number,
+    "cookingTime": number,
+    "ingredients": ["string"],
+    "recipe": ["string"],
     "youtubeLink": [
       {
-        "title": "Video Title",
-        "url": "https://www.youtube.com/results?search_query=..."
+        "title": "string",
+        "url": "string"
       }
     ]
   }
@@ -132,6 +112,12 @@ FALLBACK_RESPONSE = [
             "3. Divide dough into balls and fill with potato mixture",
             "4. Roll into flat bread and cook on hot griddle until golden",
             "5. Serve with pickle or yogurt"
+        ],
+        "youtubeLink": [
+            {
+                "title": "string",
+                "url": "string"
+            }
         ]
     },
     {
@@ -148,6 +134,12 @@ FALLBACK_RESPONSE = [
             "5. Add boiled rice, paneer cubes, and salt to taste",
             "6. Mix well and cook for 3-4 minutes",
             "7. Garnish with fresh cilantro and serve hot"
+        ],
+        "youtubeLink": [
+            {
+                "title": "string",
+                "url": "string"
+            }
         ]
     },
     {
