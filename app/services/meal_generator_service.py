@@ -36,6 +36,7 @@ Rules:
 - Recipes should contain step-by-step instructions.
 - Ingredients should be simple household ingredients.
 - Suggest chilas, upma, poha for breakfast; simple dals, rice, and vegetable dishes for lunch/dinner; and include some protein-rich options if highProtein=true.
+- Suggest meals which need to soaking or marination if maidModeEnabled=true, to allow the maid to prepare in advance.
 
 JSON format:
 [
