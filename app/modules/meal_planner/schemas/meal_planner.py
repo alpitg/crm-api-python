@@ -2,7 +2,7 @@
 # Request Models
 # =========================================================
 
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
 from typing_extensions import Literal
@@ -40,5 +40,5 @@ class MealOut(BaseModel):
     cookingTime: int
     ingredients: List[str]
     recipe: List[str]
-    youtubeLink: List[str]
+    youtubeLink: Optional[List[str]] = None
 

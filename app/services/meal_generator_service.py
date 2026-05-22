@@ -45,7 +45,7 @@ You MUST also include YouTube recipe links:
 - Do NOT leave youtubeLink empty unless absolutely necessary
 
 Prefer dishes like:
-- Breakfast: poha, upma, chilla, idli, dosa, paratha, eggs
+- Breakfast: poha, upma, chilla, Sprouts Chilla, besan + oats flour or ragi flour, idli, dosa, paratha, eggs
 - Lunch/Dinner: dal, rice, roti, sabzi, khichdi, pulao, curry
 
 JSON format:
