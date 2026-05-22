@@ -3,8 +3,9 @@ from typing import List
 
 from fastapi import APIRouter, Depends
 
+from app.modules.meal_planner.schemas.sticky_notes import StickyNoteOut
 from app.services.meal_generator_service import generate_meal_plan
-from app.utils.auth_utils import authenticate
+from app.services.sticky_notes_service import get_sticky_notes_list
 from app.modules.meal_planner.schemas.meal_planner import MealRequestIn, MealOut
 
 
@@ -22,5 +23,19 @@ async def create_meal_request(payload: MealRequestIn):
     """
 
     result = generate_meal_plan(payload)
+
+    return result
+
+
+@router.get(
+    "/sticky-notes",
+    response_model=List[StickyNoteOut],
+)
+async def get_sticky_notes():
+    """
+    Return sticky notes list.
+    """
+
+    result = get_sticky_notes_list()
 
     return result
