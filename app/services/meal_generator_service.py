@@ -141,22 +141,6 @@ FALLBACK_RESPONSE = [
                 "url": "string"
             }
         ]
-    },
-    {
-        "name": "Aloo Tomato Curry",
-        "type": "Dinner",
-        "servings": 2,
-        "cookingTime": 25,
-        "ingredients": ["Potato", "Tomato", "Onion"],
-        "recipe": [
-            "1. Cut potatoes into small cubes",
-            "2. Chop onions and tomatoes finely",
-            "3. Heat oil and sauté chopped onions until golden",
-            "4. Add potato cubes and cook for 5 minutes",
-            "5. Add tomatoes and salt, cook covered for 10 minutes",
-            "6. Stir occasionally until potatoes are soft",
-            "7. Serve hot as a side dish with rice or bread"
-        ]
     }
 ]
 
