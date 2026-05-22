@@ -12,14 +12,12 @@ PlanOption = Literal["today", "breakfast", "lunch", "dinner"]
 
 VegNonVegOption = Literal["veg", "non-veg"]
 
-RegionOption = Literal["south", "north"]
-
 VoiceLanguageOption = Literal["none", "hindi", "marathi"]
 
 
 class MealRequestIn(BaseModel):
     vegNonVeg: VegNonVegOption
-    region: RegionOption
+    region: str
     highProtein: bool
     quickCooking: bool
     maidModeEnabled: bool
