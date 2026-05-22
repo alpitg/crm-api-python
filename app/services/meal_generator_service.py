@@ -41,12 +41,7 @@ YouTube:
 - Each item: title + url only
 
 URL RULE (STRICT):
-- ONLY use YouTube search URLs
-- NEVER use watch?v links
-- NEVER generate video IDs
-
-Format:
-https://www.youtube.com/results?search_query=KEYWORDS
+- ONLY use YouTube search URLs ex. https://www.youtube.com/results?search_query=KEYWORDS
 
 Health focus:
 chilla, paneer, dal, sprouts, vegetables, millet, oats, poha, upma, idli, dosa, khichdi, curd
