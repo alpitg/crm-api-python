@@ -37,10 +37,16 @@ Rules:
 6. Cooking time in minutes, servings realistic
 
 YouTube:
-- 1–3 items per meal
-- NEVER empty
+- 1–3 items per meal, never empty
 - Each item: title + url only
-- Use YouTube search URL if unsure
+
+URL RULE (STRICT):
+- ONLY use YouTube search URLs
+- NEVER use watch?v links
+- NEVER generate video IDs
+
+Format:
+https://www.youtube.com/results?search_query=KEYWORDS
 
 Health focus:
 chilla, paneer, dal, sprouts, vegetables, millet, oats, poha, upma, idli, dosa, khichdi, curd
@@ -63,10 +69,10 @@ OUTPUT JSON:
     "cookingTime": number,
     "ingredients": ["string"],
     "youtubeLink": [
-      {
-        "title": "string",
-        "url": "string"
-      }
+        {
+            "title": "Moong Dal Chilla Recipe | Healthy Breakfast",
+            "url": "https://www.youtube.com/results?search_query=moong+dal+chilla+recipe"
+        }
     ]
   }
 ]
