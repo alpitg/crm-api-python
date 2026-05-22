@@ -30,11 +30,12 @@ Rules:
 - Use region preference.
 - Respect veg/non-veg choice.
 - If highProtein=true include protein-rich meals.
-- If quickCooking=true prefer meals under 20 mins.
+- If quickCooking=true prefer meals under 30 mins.
 - If maidLessSpicy=true reduce spice level.
 - If maidEasyCook=true use beginner-friendly recipes.
 - Recipes should contain step-by-step instructions.
 - Ingredients should be simple household ingredients.
+- Suggest chilas, upma, poha for breakfast; simple dals, rice, and vegetable dishes for lunch/dinner; and include some protein-rich options if highProtein=true.
 
 JSON format:
 [
@@ -44,7 +45,7 @@ JSON format:
     "servings": 2,
     "cookingTime": 30,
     "ingredients": ["item1", "item2"],
-    "recipe": ["step1", "step2"]
+    "recipe": ["Suggestion", "Step 1", "Step 2"]
   }
 ]
 """
