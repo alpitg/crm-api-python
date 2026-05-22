@@ -40,4 +40,5 @@ class MealOut(BaseModel):
     cookingTime: int
     ingredients: List[str]
     recipe: List[str]
+    youtubeLink: List[str]
 

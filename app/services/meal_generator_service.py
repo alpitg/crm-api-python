@@ -36,6 +36,14 @@ Rules:
 - If maidEasyCook=true, use beginner-friendly recipes.
 - If maidModeEnabled=true, include meals needing soaking/marination/prep in advance.
 
+You MUST also include YouTube recipe links:
+- Provide 1 to 3 YouTube links per meal
+- Links should be real YouTube search URLs or likely recipe video URLs
+- Prefer well-known Indian cooking channels when possible
+- If unsure of exact video, generate a YouTube search link like:
+  https://www.youtube.com/results?search_query=RECIPE_NAME
+- Do NOT leave youtubeLink empty unless absolutely necessary
+
 Prefer dishes like:
 - Breakfast: poha, upma, chilla, idli, dosa, paratha, eggs
 - Lunch/Dinner: dal, rice, roti, sabzi, khichdi, pulao, curry
@@ -48,7 +56,11 @@ JSON format:
     "servings": 2,
     "cookingTime": 30,
     "ingredients": ["item1", "item2"],
-    "recipe": ["Suggestion", "Step 1", "Step 2"]
+    "recipe": ["Suggestion", "Step 1", "Step 2"],
+    "youtubeLink": [
+      "https://www.youtube.com/watch?v=example",
+      "https://www.youtube.com/results?search_query=example+recipe"
+    ]
   }
 ]
 """
