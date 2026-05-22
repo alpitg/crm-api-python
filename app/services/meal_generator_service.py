@@ -58,7 +58,6 @@ JSON format:
     "ingredients": ["item1", "item2"],
     "recipe": ["Suggestion", "Step 1", "Step 2"],
     "youtubeLink": [
-      "https://www.youtube.com/watch?v=example",
       "https://www.youtube.com/results?search_query=example+recipe"
     ]
   }
