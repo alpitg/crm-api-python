@@ -34,7 +34,9 @@ Rules:
 - If quickCooking=true, prefer meals under 30 mins.
 - If maidLessSpicy=true, keep spice mild.
 - If maidEasyCook=true, use beginner-friendly recipes.
-- If maidModeEnabled=true, include meals needing soaking/marination/prep in advance.
+- Include meals needing soaking/marination/prep in advance.
+- Include minimun 3 options for each meal.
+- Prefer well-known dishes but avoid overly common ones like plain dal chawal.
 
 You MUST also include YouTube recipe links:
 - Provide 1 to 3 YouTube links per meal
@@ -56,7 +58,6 @@ JSON format:
     "servings": 2,
     "cookingTime": 30,
     "ingredients": ["item1", "item2"],
-    "recipe": ["Suggestion", "Step 1", "Step 2"],
     "youtubeLink": [
       "https://www.youtube.com/results?search_query=example+recipe"
     ]

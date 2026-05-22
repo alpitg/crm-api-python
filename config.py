@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     PROJECT_ROOT: str = ""
     OPENAI_API_KEY: str = ""
-    
+    POSTGRES_CONNECTION_STRING: str = ""
+
     class Config:
         env_file = ".env"
 

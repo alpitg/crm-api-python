@@ -39,6 +39,6 @@ class MealOut(BaseModel):
     servings: int
     cookingTime: int
     ingredients: List[str]
-    recipe: List[str]
+    recipe: Optional[List[str]] = None
     youtubeLink: Optional[List[str]] = None
 
