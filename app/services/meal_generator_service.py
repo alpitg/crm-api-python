@@ -162,6 +162,9 @@ def generate_meal_plan(user_input: MealRequestIn) -> List[MealOut]:
             elif "data" in parsed:
                 parsed = parsed["data"]
 
+            elif "mealPlan" in parsed:
+                parsed = parsed["mealPlan"]
+
         return [MealOut(**meal) for meal in parsed]
 
     except RateLimitError as e:
