@@ -64,3 +64,15 @@ async def get_weekly_meals():
         List[MealPlanOut]: A list of meal plans for each day of the week.
     """
     return meal_planner_service.get_weekly_meals()
+
+# meals/generate endpoint should return only JSON array of meals, without any wrapping object. Each meal should have the following structure:
+
+@router.post("/meals/generate", response_model=MealOut)
+async def generate_meal():
+    """
+    Returns a suggested meal.
+
+    Returns:
+        MealOut: A suggested meal.
+    """
+    return meal_planner_service.generate_meal()

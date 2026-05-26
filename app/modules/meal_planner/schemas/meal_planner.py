@@ -36,6 +36,7 @@ class YoutubeLinkOut(BaseModel):
     url: str
 
 class MealOut(BaseModel):
+    id: Optional[int] = None
     name: str
     type: str
     servings: int

@@ -27,3 +27,13 @@ class MealPlannerService:
             List[dict]: A list of meals for each day of the week.
         """
         return self.weekly_meals
+    
+
+    def generate_meal(self):
+        """
+        Returns a suggested meal.
+
+        Returns:
+            MealOut: A suggested meal.
+        """
+        return self.weekly_meals[0].get("meals")[0]  # Return the first meal as a suggestion
