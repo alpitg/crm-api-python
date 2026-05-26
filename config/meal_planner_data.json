@@ -1,0 +1,314 @@
+[
+  {
+    "day": "Monday",
+    "meals": [
+      {
+        "name": "Moong Dal Chilla with Mint Curd",
+        "type": "Breakfast",
+        "servings": 2,
+        "cookingTime": 20,
+        "ingredients": ["Moong dal", "Curd", "Mint chutney"],
+        "youtubeLink": [
+          {
+            "title": "Moong Dal Chilla Recipe",
+            "url": "https://www.youtube.com/results?search_query=moong+dal+chilla+recipe"
+          }
+        ],
+        "isPinned": true
+      },
+      {
+        "name": "Paneer Bhurji with Multigrain Roti",
+        "type": "Lunch",
+        "servings": 2,
+        "cookingTime": 30,
+        "ingredients": ["Paneer", "Tomato", "Onion", "Multigrain flour"],
+        "youtubeLink": [
+          {
+            "title": "Paneer Bhurji Healthy Recipe",
+            "url": "https://www.youtube.com/results?search_query=paneer+bhurji+healthy+recipe"
+          }
+        ]
+      },
+      {
+        "name": "Vegetable Millet Pulao",
+        "type": "Dinner",
+        "servings": 2,
+        "cookingTime": 30,
+        "ingredients": ["Millet", "Beans", "Carrot", "Peas"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Millet Pulao",
+            "url": "https://www.youtube.com/results?search_query=healthy+millet+pulao+recipe"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "day": "Tuesday",
+    "meals": [
+      {
+        "name": "Vegetable Oats Upma",
+        "type": "Breakfast",
+        "servings": 2,
+        "cookingTime": 25,
+        "ingredients": ["Oats", "Carrot", "Peas", "Beans"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Oats Upma",
+            "url": "https://www.youtube.com/results?search_query=healthy+oats+upma+recipe"
+          }
+        ]
+      },
+      {
+        "name": "Dal Khichdi with Salad",
+        "type": "Lunch",
+        "servings": 2,
+        "cookingTime": 35,
+        "ingredients": ["Rice", "Moong dal", "Cucumber", "Carrot"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Dal Khichdi",
+            "url": "https://www.youtube.com/results?search_query=healthy+dal+khichdi+recipe"
+          }
+        ]
+      },
+      {
+        "name": "Palak Paneer with Brown Rice",
+        "type": "Dinner",
+        "servings": 2,
+        "cookingTime": 40,
+        "ingredients": ["Spinach", "Paneer", "Brown rice"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Palak Paneer",
+            "url": "https://www.youtube.com/results?search_query=healthy+palak+paneer+recipe"
+          }
+        ],
+        "isPinned": true
+      }
+    ]
+  },
+  {
+    "day": "Wednesday",
+    "meals": [
+      {
+        "name": "Besan Chilla with Green Chutney",
+        "type": "Breakfast",
+        "servings": 2,
+        "cookingTime": 15,
+        "ingredients": ["Besan", "Onion", "Green chilli", "Coriander"],
+        "youtubeLink": [
+          {
+            "title": "Besan Chilla Recipe",
+            "url": "https://www.youtube.com/results?search_query=besan+chilla+healthy+recipe"
+          }
+        ]
+      },
+      {
+        "name": "Mixed Vegetable Roti Sabzi",
+        "type": "Lunch",
+        "servings": 2,
+        "cookingTime": 30,
+        "ingredients": ["Whole wheat flour", "Beans", "Capsicum", "Carrot"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Veg Sabzi",
+            "url": "https://www.youtube.com/results?search_query=healthy+mixed+veg+sabzi"
+          }
+        ]
+      },
+      {
+        "name": "Curd Rice with Beetroot Stir Fry",
+        "type": "Dinner",
+        "servings": 2,
+        "cookingTime": 20,
+        "ingredients": ["Rice", "Curd", "Beetroot", "Mustard seeds"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Curd Rice",
+            "url": "https://www.youtube.com/results?search_query=healthy+curd+rice+recipe"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "day": "Thursday",
+    "meals": [
+      {
+        "name": "Paneer Stuffed Oats Chilla",
+        "type": "Breakfast",
+        "servings": 2,
+        "cookingTime": 25,
+        "ingredients": ["Oats", "Paneer", "Capsicum", "Curd"],
+        "youtubeLink": [
+          {
+            "title": "Paneer Oats Chilla",
+            "url": "https://www.youtube.com/results?search_query=paneer+oats+chilla+recipe"
+          }
+        ],
+        "isPinned": true
+      },
+      {
+        "name": "Rajma Brown Rice Bowl",
+        "type": "Lunch",
+        "servings": 2,
+        "cookingTime": 40,
+        "ingredients": ["Rajma", "Brown rice", "Onion", "Tomato"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Rajma Bowl",
+            "url": "https://www.youtube.com/results?search_query=healthy+rajma+brown+rice"
+          }
+        ]
+      },
+      {
+        "name": "Vegetable Soup with Toast",
+        "type": "Dinner",
+        "servings": 2,
+        "cookingTime": 20,
+        "ingredients": ["Carrot", "Beans", "Sweet corn", "Whole wheat bread"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Vegetable Soup",
+            "url": "https://www.youtube.com/results?search_query=healthy+vegetable+soup+recipe"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "day": "Friday",
+    "meals": [
+      {
+        "name": "Sprouts Salad Bowl",
+        "type": "Breakfast",
+        "servings": 2,
+        "cookingTime": 10,
+        "ingredients": ["Mixed sprouts", "Onion", "Tomato", "Lemon"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Sprouts Salad",
+            "url": "https://www.youtube.com/results?search_query=healthy+sprouts+salad"
+          }
+        ]
+      },
+      {
+        "name": "Vegetable Dalia Khichdi",
+        "type": "Lunch",
+        "servings": 2,
+        "cookingTime": 30,
+        "ingredients": ["Dalia", "Moong dal", "Beans", "Peas"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Dalia Khichdi",
+            "url": "https://www.youtube.com/results?search_query=healthy+dalia+khichdi"
+          }
+        ]
+      },
+      {
+        "name": "Paneer Salad Wrap",
+        "type": "Dinner",
+        "servings": 2,
+        "cookingTime": 20,
+        "ingredients": ["Paneer", "Whole wheat wrap", "Lettuce", "Cucumber"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Paneer Wrap",
+            "url": "https://www.youtube.com/results?search_query=healthy+paneer+wrap"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "day": "Saturday",
+    "meals": [
+      {
+        "name": "Palak Chilla",
+        "type": "Breakfast",
+        "servings": 2,
+        "cookingTime": 20,
+        "ingredients": ["Spinach", "Besan", "Onion", "Green chilli"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Palak Chilla",
+            "url": "https://www.youtube.com/results?search_query=healthy+palak+chilla"
+          }
+        ]
+      },
+      {
+        "name": "Vegetable Pulao with Raita",
+        "type": "Lunch",
+        "servings": 2,
+        "cookingTime": 35,
+        "ingredients": ["Rice", "Carrot", "Beans", "Curd"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Vegetable Pulao",
+            "url": "https://www.youtube.com/results?search_query=healthy+vegetable+pulao"
+          }
+        ]
+      },
+      {
+        "name": "Tomato Dal with Phulka",
+        "type": "Dinner",
+        "servings": 2,
+        "cookingTime": 25,
+        "ingredients": ["Toor dal", "Tomato", "Whole wheat flour"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Tomato Dal",
+            "url": "https://www.youtube.com/results?search_query=healthy+tomato+dal"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "day": "Sunday",
+    "meals": [
+      {
+        "name": "Idli with Coconut Chutney",
+        "type": "Breakfast",
+        "servings": 2,
+        "cookingTime": 30,
+        "ingredients": ["Idli batter", "Coconut", "Curry leaves"],
+        "youtubeLink": [
+          {
+            "title": "Soft Idli Recipe",
+            "url": "https://www.youtube.com/results?search_query=soft+idli+recipe"
+          }
+        ]
+      },
+      {
+        "name": "Paneer Tikka Rice Bowl",
+        "type": "Lunch",
+        "servings": 2,
+        "cookingTime": 35,
+        "ingredients": ["Paneer", "Rice", "Capsicum", "Curd"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Paneer Tikka Bowl",
+            "url": "https://www.youtube.com/results?search_query=healthy+paneer+tikka+rice+bowl"
+          }
+        ],
+        "isPinned": true
+      },
+      {
+        "name": "Vegetable Clear Soup",
+        "type": "Dinner",
+        "servings": 2,
+        "cookingTime": 20,
+        "ingredients": ["Carrot", "Beans", "Cabbage", "Pepper"],
+        "youtubeLink": [
+          {
+            "title": "Healthy Clear Soup",
+            "url": "https://www.youtube.com/results?search_query=healthy+vegetable+clear+soup"
+          }
+        ]
+      }
+    ]
+  }
+]

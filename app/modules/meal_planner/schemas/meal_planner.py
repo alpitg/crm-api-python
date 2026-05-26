@@ -44,3 +44,6 @@ class MealOut(BaseModel):
     recipe: Optional[List[str]] = None
     youtubeLink: Optional[List[YoutubeLinkOut]] = None
 
+class MealPlanOut(BaseModel):
+    day: str
+    meals: List[MealOut]

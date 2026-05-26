@@ -5,13 +5,16 @@ from fastapi import APIRouter, Depends
 
 from app.modules.meal_planner.schemas.sticky_notes import StickyNoteIn, StickyNoteOut
 from app.services.meal_generator_service import generate_meal_plan
+from app.services.meal_planner_service import MealPlannerService
 from app.services.sticky_notes_service import create_sticky_note, get_sticky_notes_list
-from app.modules.meal_planner.schemas.meal_planner import MealRequestIn, MealOut
+from app.modules.meal_planner.schemas.meal_planner import MealPlanOut, MealRequestIn, MealOut
 
 
 router = APIRouter(
     # dependencies=[Depends(authenticate)],
 )
+
+meal_planner_service = MealPlannerService()
 
 @router.post(
     "/meal-request",
@@ -51,3 +54,13 @@ async def create_sticky_notes(payload: StickyNoteIn):
 
     result = create_sticky_note(payload)
     return result
+
+@router.get("/weekly-meals", response_model=List[MealPlanOut])
+async def get_weekly_meals():
+    """
+    Returns a list of meals for each day of the week.
+
+    Returns:
+        List[MealPlanOut]: A list of meal plans for each day of the week.
+    """
+    return meal_planner_service.get_weekly_meals()
