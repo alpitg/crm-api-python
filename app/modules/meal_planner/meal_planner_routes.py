@@ -76,3 +76,46 @@ async def generate_meal():
         MealOut: A suggested meal.
     """
     return meal_planner_service.generate_meal()
+
+
+@router.post("/meals", response_model=dict)
+async def add_meal(day: str, payload: MealOut):
+    """
+    Add a new meal to a specific day.
+    """
+
+    return meal_planner_service.add_meal(
+        day=day,
+        meal_data=payload,
+    )
+
+
+@router.put("/meals/{meal_id}", response_model=dict)
+async def update_meal(
+    meal_id: str,
+    payload: MealOut,
+):
+    """
+    Update existing meal by ID.
+    """
+
+    return meal_planner_service.update_meal(
+        meal_id=meal_id,
+        meal_data=payload,
+    )
+
+
+@router.delete("/meals/{meal_id}", response_model=dict)
+async def delete_meal(
+    meal_id: str,
+    day: str,
+):
+    """
+    Delete meal by day and meal ID.
+    """
+
+    return meal_planner_service.delete_meal(
+        day=day,
+        meal_id=meal_id,
+    )
+
