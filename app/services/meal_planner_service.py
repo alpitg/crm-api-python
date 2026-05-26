@@ -1,8 +1,10 @@
 import json
+import random
 import uuid
 from typing import List
 from pathlib import Path
 
+from app.services.meal_generator_service import generate_meal_plan
 from config import Settings
 
 
@@ -49,7 +51,21 @@ class MealPlannerService:
         """
         Returns a suggested meal.
         """
-        return self.weekly_meals[0].get("meals")[0]
+        # return self.weekly_meals[0].get("meals")[0]
+        defaultMealRequestPayload = {
+            "vegNonVeg": "veg",
+            "region": "Indian",
+            "highProtein": False,
+            "quickCooking": False,
+            "maidModeEnabled": False,
+            "maidVoiceLanguage": "english",
+            "maidLessSpicy": False,
+            "maidEasyCook": False,
+            "planOption": "today",
+        };
+        result = generate_meal_plan(defaultMealRequestPayload)
+        return random.choice(result) if result else None
+    
 
     def add_meal(
         self,

@@ -82,6 +82,34 @@
                         "url": "https://www.youtube.com/results?search_query=paneer+bhurji+healthy+recipe"
                     }
                 ]
+            },
+            {
+                "id": "3e50cf62-1fd5-40b4-b958-d17fe9dcb604",
+                "name": "Paneer Tomato Rice",
+                "type": "Lunch",
+                "servings": 2,
+                "cookingTime": 35,
+                "ingredients": [
+                    "Paneer",
+                    "Tomato",
+                    "Onion",
+                    "Rice"
+                ],
+                "recipe": [
+                    "1. Cube paneer into small pieces",
+                    "2. Finely chop onions and tomatoes",
+                    "3. Heat oil, saut\u00e9 onions until golden",
+                    "4. Add chopped tomatoes and cook until soft",
+                    "5. Add boiled rice, paneer cubes, and salt to taste",
+                    "6. Mix well and cook for 3-4 minutes",
+                    "7. Garnish with fresh cilantro and serve hot"
+                ],
+                "youtubeLink": [
+                    {
+                        "title": "Recipe Video",
+                        "url": "string"
+                    }
+                ]
             }
         ]
     },
