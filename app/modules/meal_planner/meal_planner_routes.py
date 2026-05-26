@@ -79,14 +79,14 @@ async def generate_meal():
 
 
 @router.post("/meals", response_model=dict)
-async def add_meal(day: str, payload: MealOut):
+async def add_meal(payload: MealPlanOut):
     """
     Add a new meal to a specific day.
     """
 
     return meal_planner_service.add_meal(
-        day=day,
-        meal_data=payload,
+        day=payload.day,
+        meal_data=payload.meals[0],
     )
 
 

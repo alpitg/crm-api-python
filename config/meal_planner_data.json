@@ -60,6 +60,28 @@
                         "url": "https://www.youtube.com/results?search_query=moong+dal+chilla+recipe"
                     }
                 ]
+            },
+            {
+                "id": "801714fd-8a1f-48e3-b63b-8ea16f1c93cb",
+                "name": "daal",
+                "type": "Lunch",
+                "servings": 2,
+                "cookingTime": 30,
+                "ingredients": [
+                    "Paneer",
+                    "Tomato",
+                    "Onion",
+                    "Multigrain flour"
+                ],
+                "recipe": [
+                    ""
+                ],
+                "youtubeLink": [
+                    {
+                        "title": "Recipe Video",
+                        "url": "https://www.youtube.com/results?search_query=paneer+bhurji+healthy+recipe"
+                    }
+                ]
             }
         ]
     },
