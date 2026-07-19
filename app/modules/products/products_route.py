@@ -11,6 +11,7 @@ from app.modules.products.schemas.product import (
     ProductOut,
     ProductUpdate,
 )
+from app.modules.products.service.product_service import calculate_selling_price
 from app.utils.auth_utils import authenticate
 from app.utils.generate_unique_id_util import generate_product_code
 from core.sanitize import stringify_object_ids
@@ -82,6 +83,7 @@ async def get_product(id: str):
 async def create_product(payload: ProductIn):
     data = payload.model_dump()
     data["code"] = generate_product_code()
+    data["price"]["sellingPrice"] = calculate_selling_price(data["price"])
     data["createdAt"] = datetime.now(timezone.utc)
     data["updatedAt"] = datetime.now(timezone.utc)
     result = await collection.insert_one(data)
@@ -95,6 +97,7 @@ async def create_product(payload: ProductIn):
 @router.put("/{id}", response_model=ProductOut)
 async def update_product(id: str, payload: ProductIn):
     data = payload.model_dump()
+    data["price"]["sellingPrice"] = calculate_selling_price(data["price"])
     data["updated_at"] = datetime.now(timezone.utc)
     updated = await collection.find_one_and_update(
         {"_id": ObjectId(id)},
@@ -110,7 +113,35 @@ async def update_product(id: str, payload: ProductIn):
 # ✅ Patch a product (partial update)
 @router.patch("/{id}", response_model=ProductOut)
 async def patch_product(id: str, payload: ProductUpdate):
+    existing = await collection.find_one({"_id": ObjectId(id)})
+
+    if not existing:
+        raise HTTPException(status_code=404, detail="Product not found")
+
     patch = payload.model_dump(exclude_unset=True)
+
+    if "price" in patch:
+        merged_price = {
+            **existing.get("price", {}),
+            **patch["price"],
+        }
+
+        if "discount" in patch["price"]:
+            merged_price["discount"] = {
+                **existing.get("price", {}).get("discount", {}),
+                **patch["price"]["discount"],
+            }
+
+        if "tax" in patch["price"]:
+            merged_price["tax"] = {
+                **existing.get("price", {}).get("tax", {}),
+                **patch["price"]["tax"],
+            }
+
+        merged_price["sellingPrice"] = calculate_selling_price(merged_price)
+        patch["price"] = merged_price
+
+
     patch["updated_at"] = datetime.now(timezone.utc)
     updated = await collection.find_one_and_update(
         {"_id": ObjectId(id)},

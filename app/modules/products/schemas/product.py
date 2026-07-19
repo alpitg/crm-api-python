@@ -12,14 +12,14 @@ ProductTemplate = Literal["default", "electronics", "office_stationary", "fashio
 
 
 class Discount(BaseModel):
-    is_active: bool = False
+    isActive: bool = False
     type: Optional[DiscountType] = None
     value: Optional[float] = None
 
 class ProductTax(BaseModel):
     included: bool = False
-    class_name: str = None
-    rate: float = Field(default=None, ge=0, le=100)
+    className: Optional[str] = Field(default=None)
+    rate: Optional[float] = Field(default=None, ge=0, le=100)
 
 class Deal(BaseModel):
     label: Optional[str] = None
@@ -35,6 +35,7 @@ class Price(BaseModel):
     sellingPrice: Optional[float] = Field(default=0, ge=0)
     discount: Optional[Discount] = Discount()
     tax: Optional[ProductTax] = ProductTax()
+    deal: Optional[Deal] = Deal()
 
 class Inventory(BaseModel):
     sku: Optional[str] = None
@@ -87,7 +88,6 @@ class ProductBase(BaseModel):
     rating: Optional[int] = None
 
     # TODO: implement reviews - implementation pending
-    deal: Optional[Deal] = Deal()
     totalWishlistedCount: int = 0
     tax_rule_ids: List[str] = []  # only store IDs of tax rules
 
@@ -112,7 +112,6 @@ class ProductUpdate(BaseModel):
 
 class ProductOut(ProductIn):
     id: str
-    taxes: List[TaxRuleOut] = [] 
     createdAt: Optional[datetime]
     updatedAt: Optional[datetime]
 
