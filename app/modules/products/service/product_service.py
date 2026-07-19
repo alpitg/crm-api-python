@@ -21,7 +21,8 @@ def calculate_selling_price(price: dict) -> Optional[float]:
         selling_price = base_price - (base_price * discount_value / 100)
 
     elif discount_type == "fixed":
-        selling_price = max(base_price - discount_value, 0)
+        # selling_price = max(base_price - discount_value, 0)
+        selling_price = price.get("sellingPrice")
 
     else:
         selling_price = base_price
