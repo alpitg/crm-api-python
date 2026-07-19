@@ -20,7 +20,12 @@ def setup_router(app: FastAPI) -> None:
     """
     Register all routes with the FastAPI application.
     """
-    app.include_router(ping.router, prefix="/api/ping")
+    app.include_router(ping.router, prefix="/api/ping", tags=["Public"])
+
+    #region Public
+    from app.modules.products.public.product_public_route import public_router
+    app.include_router(public_router, prefix="/api/store", tags=["Public"])
+    #endregion
 
     #region Meal Planner
     from app.modules.meal_planner import meal_planner_routes
