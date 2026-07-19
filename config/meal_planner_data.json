@@ -110,6 +110,30 @@
                         "url": "string"
                     }
                 ]
+            },
+            {
+                "id": "18c67d15-231f-463a-b733-cdaa83d55ad7",
+                "name": "Aloo Paratha",
+                "type": "Breakfast",
+                "servings": 2,
+                "cookingTime": 30,
+                "ingredients": [
+                    "Potato",
+                    "Onion"
+                ],
+                "recipe": [
+                    "1. Boil and mash 2 potatoes, mix with finely chopped onion and salt",
+                    "2. Knead whole wheat flour with water to make dough",
+                    "3. Divide dough into balls and fill with potato mixture",
+                    "4. Roll into flat bread and cook on hot griddle until golden",
+                    "5. Serve with pickle or yogurt"
+                ],
+                "youtubeLink": [
+                    {
+                        "title": "Recipe Video",
+                        "url": "string"
+                    }
+                ]
             }
         ]
     },
