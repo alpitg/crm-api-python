@@ -4,11 +4,9 @@ trigger:
       - main
 
 variables:
-  pythonVersion: "3.12"
   imageRepository: "crm-api-python"
   dockerfilePath: "Dockerfile"
-  containerRegistry: "alpitg/crm-python-api"
-  webAppName: "crm-python-api"
+  containerRegistry: 'dockerhub-service-connection'
 
 pool:
   vmImage: "ubuntu-latest"
