@@ -3,5 +3,5 @@ from fastapi import APIRouter
 router = APIRouter()
 
 @router.get("/")
-async def create_user():
+async def ping():
    return {"ping ok": True}

@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
+#  Currently used only in orders not in product
 class TaxRuleIn(BaseModel):
     name: str                      # GST, VAT, Service Tax
     code: str                      # e.g. "GST18", "VAT20"
