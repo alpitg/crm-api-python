@@ -28,6 +28,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy application code
 COPY . .
 
+COPY .env .env
+
 # Set ownership
 RUN chown -R app:app /app
 
