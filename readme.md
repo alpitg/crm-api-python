@@ -269,3 +269,14 @@ backend/
 └── README.md
 
 ```
+
+
+### Docker 
+```cmd
+docker build -t crm-api-python .
+docker run -d \
+  --name crm-api \
+  -p 8000:8000 \
+  crm-api-python
+
+```

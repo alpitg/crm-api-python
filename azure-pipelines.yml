@@ -1,0 +1,35 @@
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  pythonVersion: "3.12"
+  imageRepository: "crm-api-python"
+  dockerfilePath: "Dockerfile"
+  containerRegistry: "alpitg/crm-python-api"
+  webAppName: "crm-python-api"
+
+pool:
+  vmImage: "ubuntu-latest"
+
+stages:
+  # ---------------------------------------
+  # Build Docker Image
+  # ---------------------------------------
+  - stage: Build
+    jobs:
+      - job: BuildImage
+        steps:
+          - checkout: self
+
+          - task: Docker@2
+            displayName: Build and Push Image
+            inputs:
+              command: buildAndPush
+              repository: $(imageRepository)
+              dockerfile: $(dockerfilePath)
+              containerRegistry: $(containerRegistry)
+              tags: |
+                $(Build.BuildId)
+                latest
