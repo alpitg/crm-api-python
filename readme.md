@@ -1,9 +1,9 @@
 ###swagger
 
 ```shell
-http://127.0.0.1:8000/docs
+http://127.0.0.1:8000/api/docs
 
-https://crm-api-python-vqiy.onrender.com/docs
+https://crm-api-python-vqiy.onrender.com/api/docs
 ```
 
 
