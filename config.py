@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     PROJECT_ROOT: str = ""
     OPENAI_API_KEY: str = ""
     POSTGRES_CONNECTION_STRING: str = ""
+    MONGO_URL: str = ""
 
     class Config:
         env_file = ".env"
