@@ -8,6 +8,9 @@ openai
 
 # Database (Async MongoDB)
 motor
+pymongo
+certifi
+
 
 # Validation & settings
 pydantic[dotenv]
