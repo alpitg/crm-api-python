@@ -1,6 +1,6 @@
-from core.seed.permissions import seed_role_permissions
-from core.seed.roles import seed_default_roles
-from core.seed.users import seed_admin_user
+from core.seed.seed_permissions import seed_role_permissions
+from core.seed.seed_roles import seed_default_roles
+from core.seed.seed_users import seed_admin_user
 
 
 async def init_database():

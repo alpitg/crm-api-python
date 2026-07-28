@@ -24,11 +24,15 @@ async def login(data: LoginRequest):
     user: UserIn = await users_collection.find_one(
         {"$or": [{"userName": data.userName}, {"emailAddress": data.userName}]}
     )
-    if not user or not verify_password(data.password, user.get("password", "")):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    if not user.get("isActive", False):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not active")
 
+    try:
+        if not user or not verify_password(data.password, user.get("password", "")):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        if not user.get("isActive", False):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not active")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    
     token_data = {"sub": str(user["_id"]), "email": user["emailAddress"]}
     access_token = create_access_token(data=token_data)
     refresh_token = create_refresh_token(token_data)
