@@ -70,6 +70,7 @@ async def seed_admin_user():
         "shouldChangePasswordOnNextLogin": True,
         "password": hash_password(random_password),
         "tempPassword": random_password,
+        "isSystemUser": True
     }
 
     result = await collection.insert_one(admin_doc)

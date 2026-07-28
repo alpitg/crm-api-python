@@ -33,6 +33,7 @@ class UserIn(BaseModel):
     sendActivationEmail: bool = False
     isLockoutEnabled: bool = False
     isDarkMode: Optional[bool] = False
+    isSystemUser: Optional[bool] = False
 
 class UserOut(UserIn):
     id: str

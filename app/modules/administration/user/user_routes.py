@@ -153,8 +153,23 @@ async def delete_user(id: str):
     if not ObjectId.is_valid(id):
         raise HTTPException(status_code=400, detail="Invalid user ID")
 
+    user = await collection.find_one({
+        "_id": ObjectId(id),
+        "isDeleted": {"$ne": True}
+    })
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # ✅ Prevent deletion of system users
+    if user.get("isSystemUser", False):
+        raise HTTPException(status_code=403, detail="System user cannot be deleted")
+
     result = await collection.find_one_and_update(
-        {"_id": ObjectId(id), "isDeleted": {"$ne": True}},
+        {
+            "_id": ObjectId(id),
+            "isDeleted": {"$ne": True}
+        },
         {
             "$set": {
                 "isDeleted": True,
