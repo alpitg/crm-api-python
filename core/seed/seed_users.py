@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from app.db.mongo import db
+from app.modules.administration.user.schemas.users import UserIn
 from app.utils.auth_utils import generate_random_password, hash_password
 
 collection = db["users"]
@@ -44,8 +45,9 @@ async def seed_admin_user():
     ]
 
     now = datetime.now(timezone.utc)
+    random_password = generate_random_password()
 
-    admin_doc = {
+    admin_doc: UserIn = {
         "userName": "administrator",
         "name": "System",
         "surname": "Administrator",
@@ -66,7 +68,8 @@ async def seed_admin_user():
         "sendActivationEmail": False,
         "setRandomPassword": True,
         "shouldChangePasswordOnNextLogin": True,
-        "password": hash_password(generate_random_password()),
+        "password": hash_password(random_password),
+        "tempPassword": random_password,
     }
 
     result = await collection.insert_one(admin_doc)
