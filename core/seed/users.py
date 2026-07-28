@@ -27,7 +27,7 @@ async def seed_admin_user():
             "emailAddress": existing_admin["emailAddress"],
         }
 
-    print("🔄 Seeding admin user...")
+    print("🔄 Admin user - Seeding admin user...")
     
 
     # Fetch all roles from roles collection
@@ -71,7 +71,7 @@ async def seed_admin_user():
 
     result = await collection.insert_one(admin_doc)
 
-    print("✅ Admin user seeded successfully with email: ", admin_email)
+    print("✅ Admin user - seeded successfully with email: ", admin_email)
 
     return {
         "message": "Admin user created successfully",

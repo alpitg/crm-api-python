@@ -38,7 +38,7 @@ async def seed_default_roles():
             created_roles.append(existing)
             continue
 
-        print("🔄 Seeding default roles...")
+        print("🔄 Roles - Seeding default roles...")
 
         role_data: RoleIn = {
             "name": role_def["displayName"],
@@ -84,6 +84,6 @@ async def seed_default_roles():
 
         created_roles.append(role_data)
 
-        print("✅ Default roles seeded successfully.")
+        print("✅ Roles - Default roles seeded successfully.")
 
     return created_roles
