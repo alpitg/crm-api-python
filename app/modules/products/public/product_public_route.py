@@ -134,14 +134,6 @@ async def get_public_product(id: str):
             "media",
             []
         ),
-        "price": {
-            "basePrice": price.get("basePrice"),
-            "sellingPrice": (
-                price.get("sellingPrice")
-                if price.get("sellingPrice") is not None
-                else price.get("basePrice")
-            ),
-            "currency": "INR"
-        },
+        "price": product.get("price"),
         "status": product.get("status")
     }
