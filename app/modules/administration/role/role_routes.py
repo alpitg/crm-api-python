@@ -188,60 +188,6 @@ async def delete_role(id: str):
     result["id"] = str(result["_id"])
     return RoleOut(**stringify_object_ids(result))
 
-@router.post("/seed-default-roles", response_model=List[RoleOut], status_code=201)
-async def seed_default_roles():
-    """
-    Ensure that Admin and User roles exist.
-    If missing, create them with isStatic=True.
-    """
-    required_roles = [
-        {"displayName": "Admin", "description": "Administrator role with full access", "code": "ADMIN"},
-        {"displayName": "User", "description": "Default user role with limited access", "code": "USER"},
-    ]
-
-    created_or_existing = []
-
-    for role_def in required_roles:
-        existing = await collection.find_one({"code": role_def["code"], "isDeleted": False})
-        
-        if existing:
-            # already exists
-            role_out = RoleOut(**stringify_object_ids(existing))
-            created_or_existing.append(role_out)
-        else:
-            # create new static role
-            role_data = RoleIn(
-                displayName=role_def["displayName"],
-                description=role_def["description"],
-                code=role_def["code"],
-                isStatic=True,
-                isActive=True
-            ).model_dump()
-
-            role_permissions = role_permissions_collection.find({}, {"name": 1, "_id": 0})
-            permissions = []
-            async for doc in role_permissions:
-                if "name" in doc:
-                    permissions.append(doc["name"])
-                        
-            role_data["name"] = role_data["displayName"]
-            role_data["grantedPermissionNames"] = permissions
-            role_data["creationTime"] = datetime.now(timezone.utc)
-            role_data["lastModificationTime"] = None
-            role_data["lastModifierUserId"] = None
-            role_data["isDeleted"] = False
-
-            result = await collection.insert_one(role_data)
-            if not result.inserted_id:
-                raise HTTPException(status_code=500, detail=f"Failed to create role {role_def['displayName']}")
-
-            role_data["id"] = str(result.inserted_id)
-
-            created_or_existing.append(RoleOut(**stringify_object_ids(role_data)))
-
-    return created_or_existing
-
-
 # private method
 async def ensure_single_default_role(role_id: str, is_default: bool):
     """

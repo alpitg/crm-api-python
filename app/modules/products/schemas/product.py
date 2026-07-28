@@ -27,8 +27,12 @@ class Deal(BaseModel):
 
 # -------- Sub-models --------
 class MediaItem(BaseModel):
+    id: Optional[str] = None
     url: Optional[str] = None
-    alt: Optional[str] = None
+    altText: Optional[str] = None # For SEO
+    fileName: Optional[str] = None
+    isPrimary: Optional[bool] = False
+    displayOrder: Optional[int] = 0
 
 class Price(BaseModel):
     basePrice: Optional[float] = Field(default=0, ge=0)

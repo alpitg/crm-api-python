@@ -5,7 +5,7 @@ from typing import List
 
 from app.modules.administration.role.schemas.role_permissions import RolePermissionOut
 from app.utils.auth_utils import authenticate
-from config import Settings
+from config import settings
 from core.sanitize import stringify_object_ids
 from app.db.mongo import db
 
@@ -28,7 +28,6 @@ async def get_role_permissions():
 # ✅ 2. Reset role permissions (delete + insert fresh data)
 @router.post("/reset", response_model=dict)
 async def reset_role_permissions():
-    settings = Settings()
 
     # ✅ Ensure PROJECT_ROOT always has a valid value
     PROJECT_ROOT = Path(settings.PROJECT_ROOT) if settings.PROJECT_ROOT else Path.cwd()

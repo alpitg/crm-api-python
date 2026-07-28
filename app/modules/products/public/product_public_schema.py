@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
-from app.modules.products.schemas.product import Price
+from app.modules.products.schemas.product import MediaItem, Price
 
 class PublicPrice(Price):
     currency: str = "INR"
@@ -12,7 +12,7 @@ class PublicProductOut(BaseModel):
     description: Optional[str]
     categories: List[str]
     tags: List[str]
-    media: list
+    media: Optional[List[MediaItem]]
     price: PublicPrice
     status: str
 
