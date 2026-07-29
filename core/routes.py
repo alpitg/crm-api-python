@@ -6,6 +6,7 @@ from app.modules.administration.organisation_units import organisation_units_rou
 from app.modules.administration.role import role_permissions_routes, role_routes
 from app.modules.administration.user import user_routes
 from app.modules.customer import customer_route
+from app.modules.dashboard import dashboard_route
 from app.modules.master.frame_types import frame_type_routes
 from app.modules.master.glass_type import glass_type_routes
 from app.modules.master.misc_charges import misc_charges_routes
@@ -36,6 +37,8 @@ def setup_router(app: FastAPI) -> None:
     #region Meal Planner
     from app.modules.meal_planner import meal_planner_routes
     app.include_router(meal_planner_routes.router, prefix="/meal-planner", tags=["Meal Planner"])
+
+    app.include_router(dashboard_route.router, prefix="/dashboard", tags=["Dashboard"])
 
     #region Administration
     app.include_router(auth_routes.router, prefix="/auth", tags=["Auth"])
