@@ -17,21 +17,18 @@ orders_collection = db["orders"]
 async def get_dashboard_stats():
 
     total_products = await products_collection.count_documents({
-        "isDeleted": False
+        "status": "published"
     })
 
     total_draft_products = await products_collection.count_documents({
-        "isDeleted": False,
         "status": "draft"
     })
 
     total_customers = await customers_collection.count_documents({
-        "isDeleted": False
+        "isActive": True
     })
 
-    total_orders = await orders_collection.count_documents({
-        "isDeleted": False
-    })
+    total_orders = await orders_collection.count_documents({})
 
     return [
         {
