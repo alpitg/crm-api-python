@@ -79,7 +79,7 @@ async def get_product(id: str):
     return doc
 
 # ✅ Create new product
-@router.post("/", response_model=ProductOut, status_code=201)
+@router.post("", response_model=ProductOut, status_code=201)
 async def create_product(payload: ProductIn):
     data = payload.model_dump()
     data["code"] = generate_product_code()
