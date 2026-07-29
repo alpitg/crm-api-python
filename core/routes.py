@@ -15,17 +15,23 @@ from app.modules.orders import orders_route
 from app.modules.administration import ping
 from app.modules.products import products_route
 from app.modules.invoice import invoice_routes
+from app.modules.products.public import product_public_route
+from app.modules.blob import upload_router
 
 def setup_router(app: FastAPI) -> None:
     """
     Register all routes with the FastAPI application.
     """
+    #region Public
+
     app.include_router(ping.router, prefix="/ping", tags=["Public"])
 
-    #region Public
-    from app.modules.products.public.product_public_route import public_router
-    app.include_router(public_router, prefix="/store", tags=["Public"])
+    app.include_router(product_public_route.public_router, prefix="/store", tags=["Public"])
+
+    app.include_router(upload_router.router, prefix="/upload", tags=["Public"])
     #endregion
+
+
 
     #region Meal Planner
     from app.modules.meal_planner import meal_planner_routes

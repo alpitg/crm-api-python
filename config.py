@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     PROJECT_ROOT: str = ""
     OPENAI_API_KEY: str = ""
+
+    AZURE_STORAGE_ACCOUNT_NAME: str
+    AZURE_STORAGE_ACCOUNT_KEY: str
+    AZURE_STORAGE_CONTAINER: str
+
     POSTGRES_CONNECTION_STRING: str = ""
     MONGO_URL: str = ""
 
