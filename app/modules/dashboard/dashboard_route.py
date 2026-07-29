@@ -37,7 +37,7 @@ async def get_dashboard_stats():
             "label": "Total Products",
         },
         {
-            "icon": "bi-cart-dash",
+            "icon": "bi-pencil-square",
             "value": total_draft_products,
             "label": "Total Draft Products",
         },
@@ -47,7 +47,7 @@ async def get_dashboard_stats():
             "label": "Total Customers",
         },
         {
-            "icon": "bi-cart",
+            "icon": "bi-bag-check",
             "value": total_orders,
             "label": "Total Orders",
         },
