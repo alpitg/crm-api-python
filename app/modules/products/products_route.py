@@ -80,12 +80,13 @@ async def get_product(id: str):
 
 # ✅ Create new product
 @router.post("", response_model=ProductOut, status_code=201)
-async def create_product(payload: ProductIn):
+async def create_product(payload: ProductIn, user=Depends(authenticate)):
     data = payload.model_dump()
     data["code"] = generate_product_code()
     data["price"]["sellingPrice"] = calculate_selling_price(data["price"])
     data["createdAt"] = datetime.now(timezone.utc)
     data["updatedAt"] = datetime.now(timezone.utc)
+    data["createdBy"] = user.get("email")
     result = await collection.insert_one(data)
     if not result.inserted_id:
         raise HTTPException(status_code=500, detail="Failed to insert order")
@@ -95,10 +96,11 @@ async def create_product(payload: ProductIn):
 
 # ✅ Update a product (full replace)
 @router.put("/{id}", response_model=ProductOut)
-async def update_product(id: str, payload: ProductIn):
+async def update_product(id: str, payload: ProductIn, user=Depends(authenticate)):
     data = payload.model_dump()
     data["price"]["sellingPrice"] = calculate_selling_price(data["price"])
-    data["updated_at"] = datetime.now(timezone.utc)
+    data["updatedAt"] = datetime.now(timezone.utc)
+    data["updatedBy"] = user.get("email")
     updated = await collection.find_one_and_update(
         {"_id": ObjectId(id)},
         {"$set": data},
@@ -112,7 +114,7 @@ async def update_product(id: str, payload: ProductIn):
 
 # ✅ Patch a product (partial update)
 @router.patch("/{id}", response_model=ProductOut)
-async def patch_product(id: str, payload: ProductUpdate):
+async def patch_product(id: str, payload: ProductUpdate, user=Depends(authenticate)):
     existing = await collection.find_one({"_id": ObjectId(id)})
 
     if not existing:
@@ -143,6 +145,7 @@ async def patch_product(id: str, payload: ProductUpdate):
 
 
     patch["updated_at"] = datetime.now(timezone.utc)
+    patch["updatedBy"] = user.get("email")
     updated = await collection.find_one_and_update(
         {"_id": ObjectId(id)},
         {"$set": patch},
@@ -156,10 +159,15 @@ async def patch_product(id: str, payload: ProductUpdate):
 
 # ✅ Soft delete a product
 @router.delete("/{id}")
-async def delete_product(id: str):
+async def delete_product(id: str, user=Depends(authenticate)):
     result = await collection.update_one(
         {"_id": ObjectId(id)},
-        {"$set": {"status": "archived", "updated_at": datetime.now(timezone.utc)}}
+        {"$set": {
+            "status": "archived",
+            "updatedAt": datetime.now(timezone.utc),
+            "updatedBy": user.get("email")
+            }
+        }
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Product not found")

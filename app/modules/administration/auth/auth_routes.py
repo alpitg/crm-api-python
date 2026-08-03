@@ -46,7 +46,7 @@ async def refresh_token(refresh_token: str = Body(None, embed=True)):
         payload = decode_token(refresh_token)
         if payload.get("type") != "refresh":
             raise HTTPException(status_code=401, detail="Invalid token type")
-        token_data = {"sub": payload.get("sub"), "email": payload.get("emailAddress")}
+        token_data = {"sub": payload.get("sub"), "email": payload.get("email")}
         new_access_token = create_access_token(token_data)
         return {"accessToken": new_access_token, "tokenType": "bearer"}
     except Exception:

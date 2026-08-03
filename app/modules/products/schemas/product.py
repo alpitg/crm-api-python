@@ -118,6 +118,8 @@ class ProductOut(ProductIn):
     id: str
     createdAt: Optional[datetime]
     updatedAt: Optional[datetime]
+    createdBy: Optional[str] = None
+    updatedBy: Optional[str] = None
 
     # @staticmethod
     # def from_in(id: str, data: ProductIn) -> "ProductOut":
