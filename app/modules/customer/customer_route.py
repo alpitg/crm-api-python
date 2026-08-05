@@ -70,7 +70,7 @@ async def get_customer(id: str):
         raise HTTPException(status_code=404, detail="Customer not found")
     return customer
 
-@router.post("/", response_model=CustomerOut)
+@router.post("", response_model=CustomerOut)
 async def create_customer(payload: CustomerIn):
     now = datetime.now(timezone.utc)
     customer = {

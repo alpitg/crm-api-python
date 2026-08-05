@@ -16,7 +16,7 @@ collection = db["role_permissions"]
 
 
 # ✅ 1. Get all role permissions
-@router.get("/", response_model=List[RolePermissionOut])
+@router.get("", response_model=List[RolePermissionOut])
 async def get_role_permissions():
     cursor = collection.find({})
     results = []

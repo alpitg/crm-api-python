@@ -64,7 +64,7 @@ async def list_roles(filters: GetRolesFilterIn = Body(...)):
     }
 
 # ✅ Get All Roles ----------
-@router.get("/", response_model=PaginatedRolesOut)
+@router.get("", response_model=PaginatedRolesOut)
 async def list_roles_all():
     query = {"$or": [{"isDeleted": {"$exists": False}}, {"isDeleted": False}]}
 
@@ -99,7 +99,7 @@ async def get_role(id: str):
     )
 
 # ✅ Create new Role with Permissions ----------
-@router.post("/", response_model=RoleWithPermissions, status_code=201)
+@router.post("", response_model=RoleWithPermissions, status_code=201)
 async def create_role(payload: RoleWithPermissions):
     role_data = payload.role.model_dump()
     role_data["name"] = role_data.get("displayName", None)

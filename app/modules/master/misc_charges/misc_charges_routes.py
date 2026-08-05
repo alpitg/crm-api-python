@@ -11,7 +11,7 @@ router = APIRouter(
 collection = db["master_misc_charges"]
 
 # ✅ Get all active misc charges
-@router.get("/", response_model=List[MiscChargeOut])
+@router.get("", response_model=List[MiscChargeOut])
 async def get_all_misc_charges():
     charges = []
     cursor = collection.find({"is_active": True})
@@ -22,7 +22,7 @@ async def get_all_misc_charges():
     return charges
 
 # ✅ Create a new misc charge
-@router.post("/", response_model=MiscChargeOut)
+@router.post("", response_model=MiscChargeOut)
 async def create_misc_charge(payload: MiscChargeIn):
     data = payload.model_dump()
     result = await collection.insert_one(data)

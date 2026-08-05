@@ -85,7 +85,7 @@ async def get_orders(filters: GetOrdersFilterIn = Body(...)):
         "items": orders_summary
     }
 
-@router.get("/", response_model=PaginatedOrdersOut)
+@router.get("", response_model=PaginatedOrdersOut)
 async def list_orders(
     status: Optional[str] = None,
     invoiceId: Optional[str] = None,

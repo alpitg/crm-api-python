@@ -12,7 +12,7 @@ from app.utils.auth_utils import authenticate  # Assuming admin auth
 
 router = APIRouter()
 
-@router.post("/", response_model=InvoiceOut)
+@router.post("", response_model=InvoiceOut)
 async def create_invoice(
     request: CreateInvoiceRequest
 ):
@@ -78,7 +78,7 @@ async def get_invoice(
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/", response_model=InvoiceListResponse)
+@router.get("", response_model=InvoiceListResponse)
 async def list_invoices(
     search: Optional[str] = None,
     customerId: Optional[str] = None,

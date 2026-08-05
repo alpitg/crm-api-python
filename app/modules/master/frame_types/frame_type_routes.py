@@ -11,7 +11,7 @@ router = APIRouter(
 collection = db["master_frame_types"]
 
 # ✅ Get all active frame types
-@router.get("/", response_model=List[FrameTypeOut])
+@router.get("", response_model=List[FrameTypeOut])
 async def get_all_frame_types():
     frame_types = []
     cursor = collection.find({"is_active": True})
@@ -22,7 +22,7 @@ async def get_all_frame_types():
     return frame_types
 
 # ✅ Create a new frame type
-@router.post("/", response_model=FrameTypeOut)
+@router.post("", response_model=FrameTypeOut)
 async def create_frame_type(payload: FrameTypeIn):
     data = payload.model_dump()
     result = await collection.insert_one(data)

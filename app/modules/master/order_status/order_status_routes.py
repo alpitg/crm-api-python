@@ -11,7 +11,7 @@ router = APIRouter(
 collection = db["master_order_status"]
 
 # ✅ Get all active order statuses
-@router.get("/", response_model=List[OrderStatusOut])
+@router.get("", response_model=List[OrderStatusOut])
 async def get_all_order_statuses():
     statuses = []
     cursor = collection.find({"is_active": True})
@@ -22,7 +22,7 @@ async def get_all_order_statuses():
     return statuses
 
 # ✅ Create a new order status
-@router.post("/", response_model=OrderStatusOut)
+@router.post("", response_model=OrderStatusOut)
 async def create_order_status(payload: OrderStatusIn):
     data = payload.model_dump()
     result = await collection.insert_one(data)

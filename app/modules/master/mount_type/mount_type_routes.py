@@ -11,7 +11,7 @@ router = APIRouter(
 collection = db["master_mount_types"]
 
 # ✅ Get all active mount types
-@router.get("/", response_model=List[MountTypeOut])
+@router.get("", response_model=List[MountTypeOut])
 async def get_all_mount_types():
     mounts = []
     cursor = collection.find({"is_active": True})
@@ -22,7 +22,7 @@ async def get_all_mount_types():
     return mounts
 
 # ✅ Create a new mount type
-@router.post("/", response_model=MountTypeOut)
+@router.post("", response_model=MountTypeOut)
 async def create_mount_type(payload: MountTypeIn):
     data = payload.model_dump()
     result = await collection.insert_one(data)

@@ -11,7 +11,7 @@ router = APIRouter(
 collection = db["master_glass_types"]
 
 # ✅ Get all active glass types
-@router.get("/", response_model=List[GlassTypeOut])
+@router.get("", response_model=List[GlassTypeOut])
 async def get_all_glass_types():
     glass_types = []
     cursor = collection.find({"is_active": True})
@@ -22,7 +22,7 @@ async def get_all_glass_types():
     return glass_types
 
 # ✅ Create a new glass type
-@router.post("/", response_model=GlassTypeOut)
+@router.post("", response_model=GlassTypeOut)
 async def create_glass_type(payload: GlassTypeIn):
     data = payload.model_dump()
     result = await collection.insert_one(data)

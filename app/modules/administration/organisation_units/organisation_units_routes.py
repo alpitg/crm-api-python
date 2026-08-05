@@ -69,7 +69,7 @@ async def list_organisation_units(filters: GetOrganisationUnitsFilterIn = Body(.
     }
 
 # ✅ Get All Organisation Units ----------
-@router.get("/", response_model=PaginatedOrganisationUnitsOut)
+@router.get("", response_model=PaginatedOrganisationUnitsOut)
 async def list_organisation_units():
     """
     Get all organisation units with their roleCount.
@@ -100,7 +100,7 @@ async def list_organisation_units():
 
 
 # ✅ Create new organisation unit
-@router.post("/", response_model=OrganisationUnitOut, status_code=201)
+@router.post("", response_model=OrganisationUnitOut, status_code=201)
 async def create_organisation_unit(payload: OrganisationUnitIn):
     data = payload.model_dump()
     data["creationTime"] = datetime.now(timezone.utc)
