@@ -111,10 +111,21 @@ async def forgot_password(data: ForgotPasswordRequest):
     })
 
     # # Send email logic here
+    email_body = (
+        "Hello,\n\n"
+        "**Code**: " + reset_token + "\n\n"
+        "We received a request to reset your password for your CRM account.\n"
+        f"Use the link below to reset it securely within the next hour:\n\n"
+        f"{reset_link}\n\n"
+        "If you did not request this change, you can ignore this email and your password will remain unchanged.\n\n"
+        "Thank you,\n"
+        "CRM Team, Artisan Studios"
+    )
+
     send_email(
         subject="Password Reset Request",
         recipients=user["emailAddress"],
-        body=f"Click the following link to reset your password: {reset_link}"
+        body=email_body
     )
 
     return {"message": "Password reset link sent to your email."}
