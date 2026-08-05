@@ -101,7 +101,7 @@ async def forgot_password(data: ForgotPasswordRequest):
 
     reset_token = str(uuid.uuid4())
     expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
-    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+    reset_link = f"{settings.FRONTEND_URL}/crm/reset-password?token={reset_token}"
 
     await reset_tokens_collection.insert_one({
         "userId": str(user["_id"]),
