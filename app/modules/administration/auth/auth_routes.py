@@ -50,16 +50,19 @@ async def login(data: LoginRequest, response: Response):
 
 
 @router.post("/refresh")
-async def refresh_token(response: Response, refresh_token: str | None = Cookie(None)):
-    if not refresh_token:
+async def refresh_token(response: Response, refresh_token: str | None = Cookie(default=None)):
+    if not refresh_token or refresh_token.strip() == "":
+        response.delete_cookie(key="refresh_token", path="/")
         raise HTTPException(status_code=401, detail="Refresh token missing")
 
     try:
         payload = decode_token(refresh_token)
     except Exception as exc:
+        response.delete_cookie(key="refresh_token", path="/")
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token") from exc
 
     if payload.get("type") != "refresh":
+        response.delete_cookie(key="refresh_token", path="/")
         raise HTTPException(status_code=401, detail="Invalid token type")
 
     token_data = {"sub": payload.get("sub"), "email": payload.get("email")}
@@ -77,6 +80,17 @@ async def refresh_token(response: Response, refresh_token: str | None = Cookie(N
     )
 
     return {"accessToken": new_access_token, "tokenType": "bearer"}
+
+@router.post("/logout")
+async def logout(response: Response):
+    response.delete_cookie(
+        key="refresh_token",
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=False,
+    )
+    return {"message": "Logged out"}
 
 @router.post("/forgot-password")
 async def forgot_password(data: ForgotPasswordRequest):
