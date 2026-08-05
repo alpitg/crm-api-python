@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     POSTGRES_CONNECTION_STRING: str = ""
     MONGO_URL: str = ""
 
+    MAIL_MODE: str = ""
+    MAIL_HOST: str = ""
+    MAIL_PORT: int = 587
+    MAIL_USER: str = ""
+    MAIL_PASS: str = ""
+    MAIL_USE_TLS: bool = True
+    MAIL_FROM: str = ""
+
     class Config:
         env_file = ".env"
 

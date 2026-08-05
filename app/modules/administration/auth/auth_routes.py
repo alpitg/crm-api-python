@@ -8,6 +8,7 @@ from app.modules.administration.auth.schemas.auth_schemas import ForgotPasswordR
 from app.modules.administration.user.schemas.users import UserIn, UserOut
 from app.modules.administration.user.schemas.users import AppInitOut, ChangePasswordRequest, UpdateUserProfileRequest
 from app.modules.administration.user.services.user_service import get_user_with_permissions
+from app.services.mail_service import send_email
 from app.utils.auth_utils import create_access_token, create_refresh_token, decode_token, authenticate, hash_password, verify_password
 from core.sanitize import stringify_object_ids
 from config import settings
@@ -110,9 +111,13 @@ async def forgot_password(data: ForgotPasswordRequest):
     })
 
     # # Send email logic here
-    # send_email(...)
+    send_email(
+        subject="Password Reset Request",
+        recipients=user["emailAddress"],
+        body=f"Click the following link to reset your password: {reset_link}"
+    )
 
-    return {"message": "Password reset link sent to your email"}
+    return {"message": "Password reset link sent to your email."}
 
 
 @router.post("/reset-password")
