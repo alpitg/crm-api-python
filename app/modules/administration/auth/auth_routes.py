@@ -1,6 +1,6 @@
 import uuid
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Body, Cookie
 from datetime import datetime, timedelta, timezone
 from app.db.mongo import db
 
@@ -19,39 +19,64 @@ reset_tokens_collection = db["reset_tokens"]
 
 # -------------------- Public Routes -------------------- #
 #region
-@router.post("/login", response_model=TokenResponse)
-async def login(data: LoginRequest):
+@router.post("/login")
+async def login(data: LoginRequest, response: Response):
     user: UserIn = await users_collection.find_one(
         {"$or": [{"userName": data.userName}, {"emailAddress": data.userName}]}
     )
 
-    try:
-        if not user or not verify_password(data.password, user.get("password", "")):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-        if not user.get("isActive", False):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not active")
-    except Exception:
+    if not user or not verify_password(data.password, user.get("password", "")):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    
+
+    if not user.get("isActive", False):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not active")
+
     token_data = {"sub": str(user["_id"]), "email": user["emailAddress"]}
-    access_token = create_access_token(data=token_data)
+
+    access_token = create_access_token(token_data)
     refresh_token = create_refresh_token(token_data)
 
-    return {"accessToken": access_token, "refreshToken": refresh_token, "tokenType": "bearer"}
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 30,
+        path="/",
+    )
+
+    return {"accessToken": access_token, "tokenType": "bearer"}
 
 
 @router.post("/refresh")
-async def refresh_token(refresh_token: str = Body(None, embed=True)):
+async def refresh_token(response: Response, refresh_token: str | None = Cookie(None)):
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token missing")
+
     try:
         payload = decode_token(refresh_token)
-        if payload.get("type") != "refresh":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-        token_data = {"sub": payload.get("sub"), "email": payload.get("email")}
-        new_access_token = create_access_token(token_data)
-        return {"accessToken": new_access_token, "tokenType": "bearer"}
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token") from exc
 
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid token type")
+
+    token_data = {"sub": payload.get("sub"), "email": payload.get("email")}
+    new_access_token = create_access_token(token_data)
+    new_refresh_token = create_refresh_token(token_data)
+
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 30,
+        path="/",
+    )
+
+    return {"accessToken": new_access_token, "tokenType": "bearer"}
 
 @router.post("/forgot-password")
 async def forgot_password(data: ForgotPasswordRequest):

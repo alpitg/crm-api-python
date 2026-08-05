@@ -1,5 +1,6 @@
 import secrets
 import string
+import uuid
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
@@ -27,12 +28,24 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
+    to_encode.update({
+        "jti": str(uuid.uuid4()),
+        "type": "access",
+        "exp": expire,
+        "iat": datetime.now(timezone.utc),
+    })
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def create_refresh_token(data: dict):
     expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode = {"sub": data["sub"], "exp": expire, "email": data["email"], "type": "refresh"}
+    to_encode = {
+        "sub": data["sub"],
+        "exp": expire,
+        "email": data["email"],
+        "type": "refresh",
+        "jti": str(uuid.uuid4()),
+        "iat": datetime.now(timezone.utc),
+    }
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def decode_token(token: str):
