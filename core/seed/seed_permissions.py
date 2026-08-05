@@ -82,12 +82,10 @@ async def seed_role_permissions():
 
     # Insert fresh permissions into MongoDB
     if flat_permissions:
-
         await role_permissions_collection.insert_many(
             flat_permissions
         )
-
-    print("✅ Role permissions - seeded successfully with count: ", len(flat_permissions))
+        print("✅ Role permissions - seeded successfully with count: ", len(flat_permissions))
 
     return {
         "message": "Role permissions reset successfully",
