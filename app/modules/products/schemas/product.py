@@ -135,7 +135,7 @@ class PaginatedProductsOut(BaseModel):
 
 class GetProductsFilterIn(BaseModel):
     searchText: Optional[str] = Query(default=None, description="Search in name or code or tags"),
-    # status: Optional[str] = Query(default=None, description="Filter by status"),
+    status: Optional[str] = Query(default=None, description="Filter by status"),
     page: int = Field(1, ge=1, description="Page number (1-based)")
     pageSize: int = Field(10, ge=1, le=100, description="Number of results per page")
     sort: Optional[Literal["newest", "oldest"]] = "newest"

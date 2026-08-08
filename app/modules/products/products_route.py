@@ -1,4 +1,5 @@
 from math import ceil
+import re
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from datetime import datetime, timezone
 from bson import ObjectId
@@ -27,46 +28,74 @@ collection = db["products"]
 @router.post("/search", response_model=PaginatedProductsOut)
 async def list_products(filters: GetProductsFilterIn = Body(...)):
     query = {}
-    # if filters.status:
-    #     query["status"] = filters.status
 
-    # Determine sort order
-    sort_order = -1 if filters.sort == "newest" else 1  # newest = descending, oldest = ascending
+    # -----------------------------
+    # Filters
+    # -----------------------------
+    if filters.status:
+        query["status"] = filters.status
 
-    # Count total docs
+    # -----------------------------
+    # Search
+    # -----------------------------
+    if filters.searchText:
+        search_text = filters.searchText.strip()
+
+        if search_text:
+            # Escape user input so special regex characters
+            # don't change the query behavior.
+            search_regex = re.escape(search_text)
+
+            query["$or"] = [
+                {"name": {"$regex": search_regex, "$options": "i"}},
+                {"code": {"$regex": search_regex, "$options": "i"}},
+                {"tags": {"$regex": search_regex, "$options": "i"}},
+                {"categories": {"$regex": search_regex, "$options": "i"}},
+            ]
+
+    # -----------------------------
+    # Pagination
+    # -----------------------------
+    page = max(filters.page, 1)
+    page_size = max(filters.pageSize, 1)
+
+    skip = (page - 1) * page_size
+
+    # newest = descending
+    # oldest = ascending
+    sort_order = -1 if filters.sort == "newest" else 1
+
+    # -----------------------------
+    # Count AFTER applying filters
+    # -----------------------------
     total = await collection.count_documents(query)
 
-    # Apply pagination and sorting
-    skip = (filters.page - 1) * filters.pageSize
+    # -----------------------------
+    # Query MongoDB
+    # Filtering happens in MongoDB BEFORE pagination
+    # -----------------------------
     cursor = (
         collection.find(query)
-        .sort("createdAt", sort_order)  # 👈 Sort by createdAt DESC
+        .sort("createdAt", sort_order)
         .skip(skip)
-        .limit(filters.pageSize)
+        .limit(page_size)
     )
 
     products = []
-    async for doc in cursor:
-        if filters.searchText:
-            ql = filters.searchText.lower()
-            if not (
-                (ql in doc.get("name", "").lower())
-                or (ql in doc.get("code", "").lower())
-                or any(ql in t.lower() for t in doc.get("tags", []))
-                or any(ql in c.lower() for c in doc.get("categories", []))
-            ):
-                continue
 
+    async for doc in cursor:
         products.append(stringify_object_ids(doc))
 
+    # -----------------------------
+    # Response
+    # -----------------------------
     return {
         "total": total,
-        "page": filters.page,
-        "pageSize": filters.pageSize,
-        "pages": ceil(total / filters.pageSize) if total > 0 else 1,
+        "page": page,
+        "pageSize": page_size,
+        "pages": ceil(total / page_size) if total > 0 else 1,
         "items": products,
     }
-
 
 # ✅ Get product by id
 @router.get("/{id}", response_model=ProductOut)
