@@ -25,3 +25,5 @@ python-multipart
 reportlab
 
 azure-storage-blob
+
+razorpay

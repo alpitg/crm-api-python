@@ -102,3 +102,32 @@ class OrderWithInvoiceOut(BaseModel):
 class OrderDetailOut(BaseModel):
     order: OrderIn
     invoice: Optional[Any] = None
+
+
+# ---------- Public Order Item ----------
+class PublicOrderItemIn(BaseModel):
+    productId: str
+    productType: Optional[str] = "physical"
+    quantity: int
+    customizedDetails: Optional[CustomizedDetails] = None
+
+
+# ---------- Public Order ----------
+class PublicOrderIn(BaseModel):
+    customerName: str
+    customerId: Optional[str] = None
+    items: List[PublicOrderItemIn]
+    miscCharges: List[MiscCharge] = []
+    note: Optional[str] = "Website order"
+    discountAmount: Optional[float] = 0.0
+    likelyDateOfDelivery: Optional[datetime] = None
+
+class PublicOrderWithPaymentIn(BaseModel):
+    order: PublicOrderIn
+
+
+class VerifyWebsitePaymentIn(BaseModel):
+    orderId: str
+    razorpayPaymentId: str
+    razorpayOrderId: str
+    razorpaySignature: str

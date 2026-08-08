@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     MAIL_USE_TLS: bool = True
     MAIL_FROM: str = ""
 
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+
     class Config:
         env_file = ".env"
 

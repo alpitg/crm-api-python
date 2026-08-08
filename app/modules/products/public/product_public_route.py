@@ -8,11 +8,11 @@ from app.modules.products.public.product_public_schema import (
     PublicProductOut,
 )
 
-public_router = APIRouter()
+router = APIRouter()
 
 collection = db["products"]
 
-@public_router.get(
+@router.get(
     "/products",
     response_model=PaginatedProductsOut
 )
@@ -89,7 +89,7 @@ async def search_products(
     }
 
 
-@public_router.get(
+@router.get(
     "/products/{id}",
     response_model=PublicProductOut
 )
