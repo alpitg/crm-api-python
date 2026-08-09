@@ -5,6 +5,7 @@ from app.modules.administration.auth import auth_routes
 from app.modules.administration.organisation_units import organisation_units_routes
 from app.modules.administration.role import role_permissions_routes, role_routes
 from app.modules.administration.user import user_routes
+from app.modules.cart.public import cart_public_route
 from app.modules.customer import customer_route
 from app.modules.dashboard import dashboard_route
 from app.modules.master.frame_types import frame_type_routes
@@ -30,6 +31,7 @@ def setup_router(app: FastAPI) -> None:
 
     app.include_router(product_public_route.router, prefix="/store", tags=["Public"])
     app.include_router(orders_public_route.router, prefix="/store/orders", tags=["Public"])
+    app.include_router(cart_public_route.router, prefix="/store/cart", tags=["Public"])
 
     app.include_router(upload_router.router, prefix="/upload", tags=["Public"])
     #endregion
