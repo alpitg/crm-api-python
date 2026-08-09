@@ -53,12 +53,14 @@ async def search_products(
         ]
 
     if categories:
-        if isinstance(categories, str):
-            categories = [categories]
+        categories = [
+            category.strip()
+            for category in categories
+            if category and category.strip().lower() != "null"
+        ]
 
-        query["categories"] = {
-            "$in": categories
-        }
+    if categories:
+        query["categories"] = {"$in": categories}
 
     total = await collection.count_documents(query)
 
