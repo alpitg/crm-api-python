@@ -11,6 +11,10 @@ from app.modules.products.public.product_public_schema import (
 router = APIRouter()
 
 collection = db["products"]
+from math import ceil
+
+from fastapi import Query
+
 
 @router.get(
     "/products",
@@ -18,11 +22,10 @@ collection = db["products"]
 )
 async def search_products(
     search: str | None = None,
-    category: str | None = None,
+    categories: list[str] | str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     pageSize: int = Query(default=20, ge=1, le=50),
 ):
-
     query = {
         "status": "published"
     }
@@ -49,10 +52,14 @@ async def search_products(
             }
         ]
 
-    if category:
-        query["categories"] = category
+    if categories:
+        if isinstance(categories, str):
+            categories = [categories]
 
-    # total count
+        query["categories"] = {
+            "$in": categories
+        }
+
     total = await collection.count_documents(query)
 
     cursor = (
@@ -88,7 +95,6 @@ async def search_products(
         "pages": ceil(total / pageSize) if total else 1,
         "items": items
     }
-
 
 @router.get(
     "/products/{id}",
