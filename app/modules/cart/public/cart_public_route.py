@@ -221,11 +221,6 @@ async def build_cart_response(cart: dict | None):
         item_mrp = mrp * quantity
         item_subtotal = selling_price * quantity
 
-        # item_discount = max(
-        #     item_mrp - item_subtotal,
-        #     0,
-        # )
-
         item_discount = get_product_discount(product)
 
         mrp_total += item_mrp
