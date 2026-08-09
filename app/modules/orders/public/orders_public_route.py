@@ -96,7 +96,7 @@ async def create_public_order(payload: PublicOrderIn):
 
         # Tax
         tax = price.get("tax", {})
-        tax_included = bool(tax.get("included", False))
+        tax_included = bool(tax.get("included", True))
         tax_rate = float(tax.get("rate") or 0)
         tax_class_name = tax.get("className")
 
