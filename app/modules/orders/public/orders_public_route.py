@@ -91,7 +91,7 @@ async def create_public_order(payload: PublicOrderIn):
         total_discount += product_discount_amount
 
         # Line subtotal
-        line_subtotal = selling_price * item.quantity
+        line_subtotal = base_price * item.quantity
         subtotal += line_subtotal
 
         # Tax
