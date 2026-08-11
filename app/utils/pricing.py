@@ -183,10 +183,7 @@ def calculate_item_pricing(
     }
 
 
-from typing import Any
-
-
-def get_product_pricing(product: dict[str, Any], quantity: int = 1) -> dict[str, Any]:
+def get_product_pricing(product: ProductIn, quantity: int = 1) -> dict[str, Any]:
     price = product.get("price") or {}
 
     base_price = float(
