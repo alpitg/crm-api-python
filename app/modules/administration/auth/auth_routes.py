@@ -100,13 +100,13 @@ async def forgot_password(data: ForgotPasswordRequest):
         raise HTTPException(status_code=404, detail="User not found")
 
     reset_token = str(uuid.uuid4())
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    expiresAt = datetime.now(timezone.utc) + timedelta(hours=1)
     reset_link = f"{settings.FRONTEND_URL}/crm/reset-password?token={reset_token}"
 
     await reset_tokens_collection.insert_one({
         "userId": str(user["_id"]),
         "token": reset_token,
-        "expiresAt": expires_at,
+        "expiresAt": expiresAt,
         "link": reset_link
     })
 
@@ -137,10 +137,10 @@ async def reset_password(data: ResetPasswordRequest):
     if not token_doc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
 
-    expires_at = token_doc["expiresAt"]
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
-    if expires_at < datetime.now(timezone.utc):
+    expiresAt = token_doc["expiresAt"]
+    if expiresAt.tzinfo is None:
+        expiresAt = expiresAt.replace(tzinfo=timezone.utc)
+    if expiresAt < datetime.now(timezone.utc):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token expired")
 
     hashed_pw = hash_password(data.newPassword)

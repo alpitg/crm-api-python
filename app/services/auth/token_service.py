@@ -142,7 +142,7 @@ def create_auth_tokens(
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "expiresIn": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
 
 
@@ -292,7 +292,7 @@ def refresh_access_token(
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "expiresIn": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
 
 

@@ -34,5 +34,5 @@ class ResendOTPRequest(BaseModel):
 class OTPResponse(BaseModel):
     success: bool
     message: str
-    expires_in: int | None = None
-    retry_after: int | None = None
+    expiresIn: int | None = None
+    retryAfter: int | None = None

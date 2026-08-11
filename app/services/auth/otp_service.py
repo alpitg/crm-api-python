@@ -166,7 +166,7 @@ async def generate_and_store_otp(
 
     otp = _generate_otp()
 
-    expires_at = (
+    expiresAt = (
         now
         + timedelta(
             minutes=OTP_EXPIRY_MINUTES
@@ -186,7 +186,7 @@ async def generate_and_store_otp(
                 "mobile": mobile,
                 "otp": otp,
                 "created_at": now,
-                "expires_at": expires_at,
+                "expiresAt": expiresAt,
                 "attempts": 0,
                 "verified": False,
                 "verified_at": None,
@@ -198,9 +198,9 @@ async def generate_and_store_otp(
     return {
         "mobile": mobile,
         "otp": otp,
-        "expires_at": expires_at,
-        "expires_in": OTP_EXPIRY_MINUTES * 60,
-        "retry_after": OTP_RESEND_COOLDOWN_SECONDS,
+        "expiresAt": expiresAt,
+        "expiresIn": OTP_EXPIRY_MINUTES * 60,
+        "retryAfter": OTP_RESEND_COOLDOWN_SECONDS,
     }
 
 
@@ -257,8 +257,8 @@ async def send_login_otp(
         "success": True,
         "message": "OTP sent successfully.",
         "mobile": result["mobile"],
-        "expires_in": result["expires_in"],
-        "retry_after": result["retry_after"],
+        "expiresIn": result["expiresIn"],
+        "retryAfter": result["retryAfter"],
     }
 
 
@@ -300,8 +300,8 @@ async def resend_login_otp(
         "success": True,
         "message": "OTP resent successfully.",
         "mobile": result["mobile"],
-        "expires_in": result["expires_in"],
-        "retry_after": result["retry_after"],
+        "expiresIn": result["expiresIn"],
+        "retryAfter": result["retryAfter"],
     }
 
 
@@ -369,11 +369,11 @@ async def verify_otp(
 
     now = _now()
 
-    expires_at = otp_record.get(
-        "expires_at"
+    expiresAt = otp_record.get(
+        "expiresAt"
     )
 
-    if not expires_at:
+    if not expiresAt:
 
         await website_otps_collection.delete_one(
             {
@@ -383,11 +383,11 @@ async def verify_otp(
 
         return False
 
-    expires_at = _normalize_datetime(
-        expires_at
+    expiresAt = _normalize_datetime(
+        expiresAt
     )
 
-    if now >= expires_at:
+    if now >= expiresAt:
 
         await website_otps_collection.delete_one(
             {
@@ -624,8 +624,8 @@ async def verify_login_otp(
         "token_type": tokens[
             "token_type"
         ],
-        "expires_in": tokens[
-            "expires_in"
+        "expiresIn": tokens[
+            "expiresIn"
         ],
     }
 
@@ -736,8 +736,8 @@ async def get_otp_status(
         "created_at": record.get(
             "created_at"
         ),
-        "expires_at": record.get(
-            "expires_at"
+        "expiresAt": record.get(
+            "expiresAt"
         ),
         "attempts": record.get(
             "attempts",
@@ -769,7 +769,7 @@ async def delete_expired_otps() -> int:
 
     result = await website_otps_collection.delete_many(
         {
-            "expires_at": {
+            "expiresAt": {
                 "$lt": now,
             }
         }

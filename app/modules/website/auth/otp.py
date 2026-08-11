@@ -63,12 +63,12 @@ async def send_otp(
             "message",
             "OTP sent successfully.",
         ),
-        "expires_in": result.get(
-            "expires_in",
+        "expiresIn": result.get(
+            "expiresIn",
             300,
         ),
-        "retry_after": result.get(
-            "retry_after",
+        "retryAfter": result.get(
+            "retryAfter",
             30,
         ),
     }
@@ -119,12 +119,12 @@ async def resend_otp(
             "message",
             "OTP resent successfully.",
         ),
-        "expires_in": result.get(
-            "expires_in",
+        "expiresIn": result.get(
+            "expiresIn",
             300,
         ),
-        "retry_after": result.get(
-            "retry_after",
+        "retryAfter": result.get(
+            "retryAfter",
             30,
         ),
     }
@@ -152,7 +152,7 @@ async def verify_otp(
         access_token
         refresh_token
         token_type
-        expires_in
+        expiresIn
     """
 
     result = await verify_login_otp(
@@ -223,5 +223,5 @@ async def verify_otp(
         "access_token": result.get("access_token"),
         "refresh_token": result.get("refresh_token"),
         "token_type": result.get("token_type", "bearer"),
-        "expires_in": result.get("expires_in", 1800),
+        "expiresIn": result.get("expiresIn", 1800),
     }
