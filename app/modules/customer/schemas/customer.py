@@ -20,6 +20,7 @@ class Address(BaseModel):
 class CustomerIn(BaseModel):
     name: str
     email: Optional[str] = None
+    mobile: Optional[str] = None
     description: Optional[str] = None
     addresses: List[Address] = []
     shippingAddress: Optional[Address] = None
