@@ -20,7 +20,7 @@ from app.modules.products import products_route
 from app.modules.invoice import invoice_routes
 from app.modules.products.public import product_public_route
 from app.modules.blob import upload_router
-from app.modules.website.auth import login
+from app.modules.website.auth import auth, otp
 
 def setup_router(app: FastAPI) -> None:
     """
@@ -30,8 +30,10 @@ def setup_router(app: FastAPI) -> None:
 
     app.include_router(ping.router, prefix="/ping", tags=["Public"])
 
-    app.include_router(login.router, prefix="/store/auth", tags=["Website Auth"])
+    app.include_router(auth.router, prefix="/website/auth", tags=["Website Authentication"])
+    app.include_router(otp.router, prefix="/website/auth/otp", tags=["Website Authentication - OTP"])
 
+  
     app.include_router(product_public_route.router, prefix="/store", tags=["Public"])
     app.include_router(orders_public_route.router, prefix="/store/orders", tags=["Public"])
     app.include_router(cart_public_route.router, prefix="/store/cart", tags=["Public"])
