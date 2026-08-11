@@ -3,8 +3,6 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Literal
 from datetime import datetime
 
-from app.modules.master.tax_rules.schemas.tax_rules import TaxRuleOut
-
 # -------- Enums / Literals --------
 ProductStatus = Literal["published", "draft", "scheduled", "inactive"]
 DiscountType = Literal["none", "percentage", "fixed"]

@@ -6,6 +6,7 @@ import razorpay
 from app.db.mongo import db
 from app.modules.orders.schemas.orders import OrderIn, PublicOrderIn, VerifyWebsitePaymentIn
 from app.utils.generate_unique_id_util import generate_order_code
+from app.utils.pricing import get_product_pricing
 from core.sanitize import stringify_object_ids
 from config import settings
 
@@ -23,100 +24,137 @@ razorpay_client = razorpay.Client(
     )
 )
 
+
 @router.post("/create", status_code=status.HTTP_201_CREATED)
 async def create_public_order(payload: PublicOrderIn):
     order = payload
 
-    # Validate customer
+    # ==================================================
+    # CUSTOMER
+    # ==================================================
+
     customer_id = None
+
     if order.customerId:
         if not ObjectId.is_valid(order.customerId):
-            raise HTTPException(status_code=400, detail="Invalid customer ID")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid customer ID",
+            )
+
         customer_id = ObjectId(order.customerId)
 
-    # Calculate pricing
+    # ==================================================
+    # TOTALS
+    # ==================================================
+
     subtotal = 0.0
-    total_discount = float(order.discountAmount or 0)
+    total_discount = 0.0
     cancelled_amount = 0.0
     total_tax = 0.0
+    excluded_tax_total = 0.0
     processed_items = []
 
+    # ==================================================
+    # PRODUCTS
+    # ==================================================
+
     for item in order.items:
-        if not item.productId or not ObjectId.is_valid(item.productId):
-            raise HTTPException(status_code=400, detail=f"Invalid product ID: {item.productId}")
+        if not item.productId:
+            raise HTTPException(
+                status_code=400,
+                detail="Product ID is required",
+            )
+
+        if not ObjectId.is_valid(item.productId):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid product ID: {item.productId}",
+            )
 
         if item.quantity <= 0:
-            raise HTTPException(status_code=400, detail="Quantity must be greater than zero")
+            raise HTTPException(
+                status_code=400,
+                detail="Quantity must be greater than zero",
+            )
 
-        product = await products_collection.find_one({
-            "_id": ObjectId(item.productId)
-        })
+        product = await products_collection.find_one(
+            {"_id": ObjectId(item.productId)}
+        )
 
         if not product:
-            raise HTTPException(status_code=404, detail=f"Product not found: {item.productId}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Product not found: {item.productId}",
+            )
 
-        inventory = product.get("inventory", {})
+        # ==================================================
+        # INVENTORY
+        # ==================================================
+
+        inventory = product.get("inventory") or {}
+
         stock = (
-            inventory.get("quantityInShelf", 0)
-            + inventory.get("quantityInWarehouse", 0)
+            int(inventory.get("quantityInShelf") or 0)
+            + int(inventory.get("quantityInWarehouse") or 0)
         )
 
         if stock < item.quantity:
             raise HTTPException(
                 status_code=400,
-                detail=f"Insufficient stock for {product.get('name')}"
+                detail=f"Insufficient stock for {product.get('name')}",
             )
 
-        # Get pricing from database
-        price = product.get("price", {})
-        base_price = float(price.get("basePrice") or 0)
-        selling_price = float(price.get("sellingPrice") or 0)
+        # ==================================================
+        # PRICING
+        # ==================================================
 
-        if selling_price <= 0:
+        try:
+            pricing = get_product_pricing(
+                product,
+                item.quantity,
+            )
+        except ValueError as exc:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid selling price for {product.get('name')}"
+                detail=f"Invalid pricing for {product.get('name')}: {str(exc)}",
             )
 
-        # Product discount
-        product_discount_per_unit = max(
-            base_price - selling_price,
-            0
-        )
+        line_subtotal = pricing["subtotal"]
+        line_discount = pricing["discount"]
+        line_tax = pricing["taxAmount"]
+        line_excluded_tax = pricing["excludedTaxAmount"]
 
-        product_discount_amount = (
-            product_discount_per_unit * item.quantity
-        )
-
-        total_discount += product_discount_amount
-
-        # Line subtotal
-        line_subtotal = base_price * item.quantity
         subtotal += line_subtotal
+        total_discount += line_discount
+        total_tax += line_tax
+        excluded_tax_total += line_excluded_tax
 
-        # Tax
-        tax = price.get("tax", {})
-        tax_included = bool(tax.get("included", True))
-        tax_rate = float(tax.get("rate") or 0)
-        tax_class_name = tax.get("className")
+        # ==================================================
+        # TAX SNAPSHOT
+        # ==================================================
 
-        line_tax = 0.0
+        tax_data = pricing["tax"]
 
-        if tax_rate > 0 and not tax_included:
-            line_tax = line_subtotal * tax_rate / 100
-            total_tax += line_tax
-
-        # Tax snapshot
         tax_snapshot = []
 
-        if tax_class_name or tax_rate > 0:
-            tax_snapshot = [{
-                "className": tax_class_name,
-                "rate": tax_rate,
-                "included": tax_included
-            }]
+        if (
+            tax_data["className"]
+            or tax_data["rate"] > 0
+        ):
+            tax_snapshot = [
+                {
+                    "className": tax_data["className"],
+                    "rate": tax_data["rate"],
+                    "included": tax_data["included"],
+                    "amount": tax_data["amount"],
+                }
+            ]
 
-        # Build item snapshot
+        # ==================================================
+        # ITEM SNAPSHOT
+        # ==================================================
+
         processed_item = {
             "productId": item.productId,
             "productType": (
@@ -126,77 +164,148 @@ async def create_public_order(payload: PublicOrderIn):
             "name": product.get("name"),
             "description": product.get("description"),
             "quantity": item.quantity,
-            "unitPrice": selling_price,
+            "unitPrice": pricing["unitSellingPrice"],
+            "mrp": pricing["unitMrp"],
             "discountedQuantity": (
                 item.quantity
-                if product_discount_amount > 0
+                if line_discount > 0
                 else 0
             ),
-            "discountAmount": product_discount_amount,
+            "discountAmount": line_discount,
             "cancelledQty": 0,
             "taxSnapshot": tax_snapshot,
             "customizedDetails": (
                 item.customizedDetails.model_dump()
                 if item.customizedDetails
                 else {}
-            )
+            ),
         }
 
         processed_items.append(processed_item)
 
-    # Misc charges
+    # ==================================================
+    # CLIENT DISCOUNT
+    # ==================================================
+    # Do not trust the frontend for product discounts.
+    # Product discounts are already calculated above.
+    # This value can later be replaced by a validated
+    # coupon/offer service.
+
+    requested_discount = float(
+        order.discountAmount or 0
+    )
+
+    if requested_discount < 0:
+        requested_discount = 0.0
+
+    requested_discount = min(
+        requested_discount,
+        subtotal,
+    )
+
+    total_discount += requested_discount
+
+    # ==================================================
+    # SHIPPING
+    # ==================================================
+
+    shipping = 0.0
+
+    # ==================================================
+    # MISC CHARGES
+    # ==================================================
+
     misc_charges = order.miscCharges or []
 
     misc_total = sum(
         float(charge.amount)
         for charge in misc_charges
+        if float(charge.amount) > 0
     )
 
-    # Final amount
+    # ==================================================
+    # FINAL TOTAL
+    # ==================================================
+    #
+    # subtotal already contains:
+    # - product selling prices
+    # - included taxes
+    #
+    # Only excluded tax is added separately.
+
     total_amount = (
         subtotal
-        - total_discount
-        - cancelled_amount
-        + total_tax
+        + excluded_tax_total
+        + shipping
         + misc_total
+        - requested_discount
+        - cancelled_amount
+    )
+
+    total_amount = round(
+        total_amount,
+        2,
     )
 
     if total_amount <= 0:
         raise HTTPException(
             status_code=400,
-            detail="Invalid order amount"
+            detail="Invalid order amount",
         )
+
+    # ==================================================
+    # ORDER
+    # ==================================================
 
     order_code = generate_order_code()
     now = datetime.now(timezone.utc)
 
-    # Create Order
     order_doc = {
         "orderCode": order_code,
         "customerName": order.customerName,
         "customerId": customer_id,
         "items": processed_items,
-        "discountAmount": float(order.discountAmount or 0),
+        "discountAmount": requested_discount,
         "miscCharges": misc_charges,
+        "shippingAmount": shipping,
         "orderStatus": "payment_pending",
         "invoiceId": None,
         "handledBy": None,
         "createdAt": now,
         "likelyDateOfDelivery": order.likelyDateOfDelivery,
         "note": order.note or "Website order",
-        "subtotal": subtotal,
-        "totalDiscountAmount": total_discount,
+        "subtotal": round(subtotal, 2),
+        "totalDiscountAmount": round(
+            total_discount,
+            2,
+        ),
+        "totalTaxAmount": round(
+            total_tax,
+            2,
+        ),
+        "includedTaxAmount": round(
+            total_tax - excluded_tax_total,
+            2,
+        ),
+        "excludedTaxAmount": round(
+            excluded_tax_total,
+            2,
+        ),
         "totalAmount": total_amount,
-        "cancelledAmount": cancelled_amount
+        "cancelledAmount": round(
+            cancelled_amount,
+            2,
+        ),
     }
 
-    # Insert Order
-    result = await orders_collection.insert_one(order_doc)
+    result = await orders_collection.insert_one(
+        order_doc
+    )
 
     if not result.inserted_id:
         raise HTTPException(
             status_code=500,
-            detail="Failed to create order"
+            detail="Failed to create order",
         )
 
     order_id = result.inserted_id
@@ -204,7 +313,10 @@ async def create_public_order(payload: PublicOrderIn):
     razorpay_order = None
 
     try:
-        # Create Invoice
+        # ==================================================
+        # INVOICE
+        # ==================================================
+
         invoice_doc = {
             "orderIds": [order_id],
             "billDate": None,
@@ -215,7 +327,7 @@ async def create_public_order(payload: PublicOrderIn):
                 "detail": None,
                 "phone": None,
                 "email": None,
-                "gstin": None
+                "gstin": None,
             },
             "paymentMode": "online",
             "paymentProvider": "razorpay",
@@ -228,102 +340,139 @@ async def create_public_order(payload: PublicOrderIn):
             "razorpay": {
                 "orderId": None,
                 "paymentId": None,
-                "signature": None
+                "signature": None,
             },
-            "createdAt": now
+            "createdAt": now,
         }
 
-        invoice_result = await invoices_collection.insert_one(invoice_doc)
+        invoice_result = await invoices_collection.insert_one(
+            invoice_doc
+        )
 
         if not invoice_result.inserted_id:
             raise HTTPException(
                 status_code=500,
-                detail="Failed to create invoice"
+                detail="Failed to create invoice",
             )
 
         invoice_id = invoice_result.inserted_id
 
-        # Create Razorpay Order
-        razorpay_order = razorpay_client.order.create({
-            "amount": int(round(total_amount * 100)),
-            "currency": "INR",
-            "receipt": order_code,
-            "payment_capture": 1,
-            "notes": {
-                "order_id": str(order_id),
-                "order_code": order_code,
-                "invoice_id": str(invoice_id)
+        # ==================================================
+        # RAZORPAY
+        # ==================================================
+
+        razorpay_amount = int(
+            round(total_amount * 100)
+        )
+
+        razorpay_order = razorpay_client.order.create(
+            {
+                "amount": razorpay_amount,
+                "currency": "INR",
+                "receipt": order_code,
+                "payment_capture": 1,
+                "notes": {
+                    "order_id": str(order_id),
+                    "order_code": order_code,
+                    "invoice_id": str(invoice_id),
+                },
             }
-        })
+        )
 
         if not razorpay_order.get("id"):
             raise HTTPException(
                 status_code=500,
-                detail="Failed to create Razorpay order"
+                detail="Failed to create Razorpay order",
             )
 
-        # Update Invoice with Razorpay Order ID
+        # ==================================================
+        # UPDATE INVOICE
+        # ==================================================
+
         await invoices_collection.update_one(
             {"_id": invoice_id},
             {
                 "$set": {
-                    "razorpay.orderId": razorpay_order["id"]
+                    "razorpay.orderId": razorpay_order["id"],
                 }
-            }
+            },
         )
 
-        # Update Order with Invoice ID
+        # ==================================================
+        # UPDATE ORDER
+        # ==================================================
+
         await orders_collection.update_one(
             {"_id": order_id},
             {
                 "$set": {
-                    "invoiceId": str(invoice_id)
+                    "invoiceId": str(invoice_id),
                 }
-            }
+            },
         )
 
     except HTTPException:
-        await orders_collection.delete_one({"_id": order_id})
+        await orders_collection.delete_one(
+            {"_id": order_id}
+        )
 
         if invoice_id:
-            await invoices_collection.delete_one({"_id": invoice_id})
+            await invoices_collection.delete_one(
+                {"_id": invoice_id}
+            )
 
         raise
 
     except Exception as exc:
-        await orders_collection.delete_one({"_id": order_id})
+        await orders_collection.delete_one(
+            {"_id": order_id}
+        )
 
         if invoice_id:
-            await invoices_collection.delete_one({"_id": invoice_id})
+            await invoices_collection.delete_one(
+                {"_id": invoice_id}
+            )
 
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to initialize payment: {str(exc)}"
+            detail=f"Failed to initialize payment: {str(exc)}",
         )
 
-    # Get final order
-    created_order = await orders_collection.find_one({
-        "_id": order_id
-    })
+    # ==================================================
+    # FINAL ORDER
+    # ==================================================
 
-    # Get final invoice
-    created_invoice = await invoices_collection.find_one({
-        "_id": invoice_id
-    })
+    created_order = await orders_collection.find_one(
+        {"_id": order_id}
+    )
 
-    response =  {
-        "order": stringify_object_ids(created_order),
-        "invoice": stringify_object_ids(created_invoice),
+    # ==================================================
+    # FINAL INVOICE
+    # ==================================================
+
+    created_invoice = await invoices_collection.find_one(
+        {"_id": invoice_id}
+    )
+
+    # ==================================================
+    # RESPONSE
+    # ==================================================
+
+    return {
+        "order": stringify_object_ids(
+            created_order
+        ),
+        "invoice": stringify_object_ids(
+            created_invoice
+        ),
         "payment": {
             "provider": "razorpay",
             "keyId": settings.RAZORPAY_KEY_ID,
             "razorpayOrderId": razorpay_order["id"],
             "amount": razorpay_order["amount"],
-            "currency": razorpay_order["currency"]
-        }
+            "currency": razorpay_order["currency"],
+        },
     }
-
-    return response
 
 
 @router.post("/verify-payment")

@@ -12,6 +12,7 @@ from app.modules.cart.schemas.cart import (
     ClearCartIn,
 )
 from app.modules.products.schemas.product import ProductIn, ProductTax
+from app.utils.pricing import calculate_item_pricing
 
 router = APIRouter()
 
@@ -168,7 +169,9 @@ def get_product_tax(product: ProductIn) -> ProductTax:
 # Cart Response
 # ============================================================
 
-async def build_cart_response(cart: dict | None):
+async def build_cart_response(
+    cart: dict | None,
+):
     """
     Always calculate pricing from current product data.
 
@@ -204,9 +207,11 @@ async def build_cart_response(cart: dict | None):
     response_items = []
 
     mrp_total = 0.0
+    discount_total = 0.0
     subtotal = 0.0
     total_quantity = 0
     tax_total = 0.0
+    excluded_tax_total = 0.0
 
     for item in cart.get("items", []):
         product_id = item.get("productId")
@@ -215,67 +220,48 @@ async def build_cart_response(cart: dict | None):
             continue
 
         try:
-            product = await get_product(product_id)
+            product = await get_product(
+                product_id
+            )
         except HTTPException:
-            # Product may have been unpublished/deleted
-            # after being added to the cart.
             continue
 
-        # ==================================================
-        # CURRENT PRODUCT PRICING
-        # ==================================================
-
-        selling_price = get_product_price(product)
-        mrp = get_product_mrp(product)
-        item_discount = get_product_discount(product)
-        tax = get_product_tax(product)
-
-        quantity = int(item.get("quantity", 1))
+        quantity = int(
+            item.get("quantity", 1)
+        )
 
         if quantity < 1:
             continue
 
         # ==================================================
-        # TAX
+        # PRICING
         # ==================================================
 
-        tax_rate = float(tax.get("rate") or 0)
-        tax_included = bool(tax.get("included", False))
-        tax_class_name = tax.get("className")
+        pricing = calculate_item_pricing(
+            product,
+            quantity,
+        )
 
-        item_mrp = mrp * quantity
-        item_subtotal = selling_price * quantity
+        mrp_total += (
+            pricing["mrp"]
+            * quantity
+        )
 
-        item_tax = 0.0
+        discount_total += (
+            pricing["discount"]["amount"]
+        )
 
-        if tax_rate > 0:
-            if tax_included:
-                # Selling price already contains tax.
-                #
-                # Example:
-                # Selling price = ₹118
-                # GST = 18%
-                #
-                # Tax portion = 118 - (118 / 1.18)
-                tax_amount_per_item = (
-                    selling_price
-                    - (selling_price / (1 + tax_rate / 100))
-                )
+        subtotal += pricing["subtotal"]
 
-                item_tax = tax_amount_per_item * quantity
-
-            else:
-                # Tax is added on top of selling price.
-                item_tax = item_subtotal * tax_rate / 100
-
-        # ==================================================
-        # TOTALS
-        # ==================================================
-
-        mrp_total += item_mrp
-        subtotal += item_subtotal
         total_quantity += quantity
-        tax_total += item_tax
+
+        tax_total += (
+            pricing["tax"]["amount"]
+        )
+
+        excluded_tax_total += (
+            pricing["excludedTax"]
+        )
 
         # ==================================================
         # MEDIA
@@ -285,8 +271,16 @@ async def build_cart_response(cart: dict | None):
 
         image = None
 
-        if media and isinstance(media[0], dict):
-            image = media[0].get("url")
+        if (
+            media
+            and isinstance(
+                media[0],
+                dict,
+            )
+        ):
+            image = media[0].get(
+                "url"
+            )
 
         # ==================================================
         # RESPONSE ITEM
@@ -300,38 +294,44 @@ async def build_cart_response(cart: dict | None):
                     "physical",
                 ),
                 "quantity": quantity,
-                "name": product.get("name"),
-                "description": product.get("description"),
+                "name": product.get(
+                    "name"
+                ),
+                "description": product.get(
+                    "description"
+                ),
                 "image": image,
-
                 "price": {
-                    "mrp": mrp,
-                    "sellingPrice": selling_price,
-                    "discount": item_discount,
+                    "mrp": pricing["mrp"],
+                    "sellingPrice": pricing[
+                        "sellingPrice"
+                    ],
+                    "discount": get_product_discount(
+                        product
+                    ),
                     "tax": {
-                        "rate": tax_rate,
-                        "included": tax_included,
-                        "className": tax_class_name,
-                        "amount": round(item_tax, 2),
+                        "rate": pricing[
+                            "tax"
+                        ]["rate"],
+                        "included": pricing[
+                            "tax"
+                        ]["included"],
+                        "className": pricing[
+                            "tax"
+                        ]["className"],
+                        "amount": pricing[
+                            "tax"
+                        ]["amount"],
                     },
                 },
-
-                "itemTotal": round(item_subtotal, 2),
-
+                "itemTotal": pricing[
+                    "total"
+                ],
                 "customizedDetails": item.get(
                     "customizedDetails"
                 ),
             }
         )
-
-    # ==================================================
-    # CART DISCOUNT
-    # ==================================================
-
-    discount_total = max(
-        mrp_total - subtotal,
-        0,
-    )
 
     # ==================================================
     # SHIPPING / MISC
@@ -343,28 +343,6 @@ async def build_cart_response(cart: dict | None):
     # ==================================================
     # GRAND TOTAL
     # ==================================================
-
-    # If tax is included:
-    #     subtotal already contains tax.
-    #
-    # If tax is excluded:
-    #     tax must be added to subtotal.
-    #
-    # Since item_subtotal is always the product selling price,
-    # we need to calculate the final amount accordingly.
-
-    excluded_tax_total = 0.0
-
-    for response_item in response_items:
-        tax_data = (
-            response_item.get("price", {}).get("tax") or {}
-        )
-
-        if not tax_data.get("included", False):
-            excluded_tax_total += tax_data.get(
-                "amount",
-                0,
-            )
 
     grand_total = (
         subtotal
@@ -379,100 +357,42 @@ async def build_cart_response(cart: dict | None):
 
     return {
         "id": cart.get("id"),
-        "customerId": cart.get("customerId"),
-        "guestCartId": cart.get("guestCartId"),
-        "items": response_items,
-        "summary": {
-            "totalItems": len(response_items),
-            "totalQuantity": total_quantity,
-            "mrp": round(mrp_total, 2),
-            "discount": round(discount_total, 2),
-            "subtotal": round(subtotal, 2),
-            "shipping": round(shipping, 2),
-            "tax": round(tax_total, 2),
-            "miscCharges": round(misc_charges, 2),
-            "grandTotal": round(grand_total, 2),
-        },
-    }
-
-    # --------------------------------------------------------
-    # Discount
-    # --------------------------------------------------------
-
-    discount = max(
-        mrp_total - subtotal,
-        0,
-    )
-
-    # --------------------------------------------------------
-    # Business rules
-    #
-    # These can later come from:
-    # - shipping service
-    # - tax service
-    # - coupon service
-    # - misc charge service
-    # --------------------------------------------------------
-
-    shipping = 0
-    tax = 0
-    misc_charges = 0
-
-    grand_total = (
-        subtotal
-        + shipping
-        + tax
-        + misc_charges
-    )
-
-    return {
-        "id": str(cart["_id"]),
-
         "customerId": cart.get(
             "customerId"
         ),
-
         "guestCartId": cart.get(
             "guestCartId"
         ),
-
         "items": response_items,
-
         "summary": {
-            "totalItems": len(response_items),
-
+            "totalItems": len(
+                response_items
+            ),
             "totalQuantity": total_quantity,
-
             "mrp": round(
                 mrp_total,
                 2,
             ),
-
             "discount": round(
-                discount,
+                discount_total,
                 2,
             ),
-
             "subtotal": round(
                 subtotal,
                 2,
             ),
-
             "shipping": round(
                 shipping,
                 2,
             ),
-
             "tax": round(
-                tax,
+                tax_total,
                 2,
             ),
-
             "miscCharges": round(
                 misc_charges,
                 2,
             ),
-
             "grandTotal": round(
                 grand_total,
                 2,
