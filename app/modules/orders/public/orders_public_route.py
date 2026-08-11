@@ -709,19 +709,12 @@ async def verify_website_payment(
         ),
         "payment": {
             "provider": "razorpay",
-            "paymentId":
-                payload.razorpayPaymentId,
-            "razorpayOrderId":
-                razorpay_order_id,
-            "paymentMethod":
-                payment_method,
-            "amount":
-                payment.get("amount"),
-            "currency":
-                payment.get("currency"),
-            "status":
-                payment_status,
-            "paidAt":
-                now
+            "paymentId": payload.razorpayPaymentId,
+            "razorpayOrderId": razorpay_order_id,
+            "paymentMethod": payment_method,
+            "amount": payment.get("amount"),
+            "currency": payment.get("currency"),
+            "status": payment_status,
+            "paidAt": now
         }
     }
