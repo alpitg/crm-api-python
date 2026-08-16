@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 
@@ -40,10 +40,6 @@ def _create_token(
     payload: dict,
     expires_delta: timedelta,
 ) -> str:
-    """
-    Create JWT token.
-    """
-
     now = _now()
 
     token_payload = payload.copy()
@@ -71,10 +67,6 @@ def create_access_token(
     customer_id: str,
     mobile: Optional[str] = None,
 ) -> str:
-    """
-    Create short-lived access token.
-    """
-
     payload = {
         "sub": str(customer_id),
         "type": "access",
@@ -99,10 +91,6 @@ def create_access_token(
 def create_refresh_token(
     customer_id: str,
 ) -> str:
-    """
-    Create long-lived refresh token.
-    """
-
     payload = {
         "sub": str(customer_id),
         "type": "refresh",
@@ -125,10 +113,6 @@ def create_auth_tokens(
     customer_id: str,
     mobile: Optional[str] = None,
 ) -> dict:
-    """
-    Create access + refresh tokens.
-    """
-
     access_token = create_access_token(
         customer_id=customer_id,
         mobile=mobile,
@@ -154,20 +138,12 @@ def create_auth_tokens(
 def decode_token(
     token: str,
 ) -> Optional[dict]:
-    """
-    Decode and validate JWT.
-
-    Returns None if token is invalid or expired.
-    """
-
     try:
-        payload = jwt.decode(
+        return jwt.decode(
             token,
             settings.SECRET_KEY,
             algorithms=[ALGORITHM],
         )
-
-        return payload
 
     except JWTError:
         return None
@@ -181,13 +157,7 @@ def decode_token(
 def verify_access_token(
     token: str,
 ) -> Optional[dict]:
-    """
-    Validate an access token.
-    """
-
-    payload = decode_token(
-        token
-    )
+    payload = decode_token(token)
 
     if not payload:
         return None
@@ -209,13 +179,7 @@ def verify_access_token(
 def verify_refresh_token(
     token: str,
 ) -> Optional[dict]:
-    """
-    Validate a refresh token.
-    """
-
-    payload = decode_token(
-        token
-    )
+    payload = decode_token(token)
 
     if not payload:
         return None
@@ -230,27 +194,19 @@ def verify_refresh_token(
 
 
 # ============================================================
-# CUSTOMER ID FROM TOKEN
+# CUSTOMER ID FROM ACCESS TOKEN
 # ============================================================
 
 
 def get_customer_id_from_token(
     token: str,
 ) -> Optional[str]:
-    """
-    Extract customer ID from access token.
-    """
-
-    payload = verify_access_token(
-        token
-    )
+    payload = verify_access_token(token)
 
     if not payload:
         return None
 
-    customer_id = payload.get(
-        "sub"
-    )
+    customer_id = payload.get("sub")
 
     if not customer_id:
         return None
@@ -266,52 +222,43 @@ def get_customer_id_from_token(
 def refresh_access_token(
     refresh_token: str,
 ) -> Optional[dict]:
-    """
-    Generate a new access token
-    using a valid refresh token.
-    """
-
-    payload = verify_refresh_token(
-        refresh_token
-    )
+    payload = verify_refresh_token(refresh_token)
 
     if not payload:
         return None
 
-    customer_id = payload.get(
-        "sub"
-    )
+    customer_id = payload.get("sub")
 
     if not customer_id:
         return None
 
     access_token = create_access_token(
-        customer_id=str(customer_id)
+        customer_id=str(customer_id),
     )
 
     return {
+        "success": True,
         "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
         "expiresIn": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
 
 
 # ============================================================
-# FASTAPI CURRENT CUSTOMER ID
+# CURRENT CUSTOMER ID
 # ============================================================
 
 
 async def get_current_customer_id(
-    credentials: HTTPAuthorizationCredentials = None,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> str:
     """
-    FastAPI dependency.
-
     Reads:
 
         Authorization: Bearer <access_token>
 
-    and returns customer ID.
+    and returns the customer ID.
     """
 
     if not credentials:
@@ -319,22 +266,29 @@ async def get_current_customer_id(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required.",
             headers={
-                "WWW-Authenticate": "Bearer"
+                "WWW-Authenticate": "Bearer",
+            },
+        )
+
+    if credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication scheme.",
+            headers={
+                "WWW-Authenticate": "Bearer",
             },
         )
 
     token = credentials.credentials
 
-    customer_id = get_customer_id_from_token(
-        token
-    )
+    customer_id = get_customer_id_from_token(token)
 
     if not customer_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired access token.",
             headers={
-                "WWW-Authenticate": "Bearer"
+                "WWW-Authenticate": "Bearer",
             },
         )
 
@@ -347,35 +301,28 @@ async def get_current_customer_id(
 
 
 async def get_current_customer(
-    credentials: HTTPAuthorizationCredentials = None,
+    customer_id: str = Depends(get_current_customer_id),
 ):
     """
-    FastAPI dependency.
-
     Returns the authenticated customer document.
     """
 
+    from bson import ObjectId
     from app.db.mongo import db
 
-    customer_id = await get_current_customer_id(
-        credentials=credentials
-    )
-
-    from bson import ObjectId
-
     try:
-        object_id = ObjectId(
-            customer_id
-        )
+        object_id = ObjectId(customer_id)
+
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid customer ID.",
+            headers={
+                "WWW-Authenticate": "Bearer",
+            },
         )
 
-    customer = await db[
-        "customers"
-    ].find_one(
+    customer = await db["customers"].find_one(
         {
             "_id": object_id,
         }
@@ -385,6 +332,9 @@ async def get_current_customer(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Customer not found.",
+            headers={
+                "WWW-Authenticate": "Bearer",
+            },
         )
 
     return customer
@@ -399,20 +349,13 @@ async def logout_customer(
     token: str,
 ) -> bool:
     """
-    Logout helper.
+    JWT access tokens are stateless.
 
-    JWT access tokens are stateless, so simply deleting a
-    token on the server is not possible.
-
-    The client should remove its access/refresh tokens.
-
-    This function is kept as a common auth-service interface
-    so a token blacklist can be added later if required.
+    Client-side token removal is sufficient unless you later
+    implement a token blacklist/session store.
     """
 
-    payload = verify_access_token(
-        token
-    )
+    payload = verify_access_token(token)
 
     if not payload:
         return False

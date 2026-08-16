@@ -26,9 +26,15 @@ async def refresh_token(
     Generate a new access token using refresh token.
     """
 
-    result = await refresh_access_token(
-        refresh_token=payload.refresh_token,
-    )
+    try:
+        result = refresh_access_token(
+            refresh_token=payload.refresh_token,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token.",
+        ) from exc
 
     if not result.get("success"):
         raise HTTPException(
