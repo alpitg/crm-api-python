@@ -64,6 +64,64 @@ class WishlistService:
 
             wishlist["_id"] = result.inserted_id
 
+        items = wishlist.get("items", [])
+
+        product_ids: list[ObjectId] = []
+
+        for item in items:
+            product_id = item.get("productId")
+
+            if not product_id:
+                continue
+
+            try:
+                product_ids.append(ObjectId(product_id))
+            except Exception:
+                continue
+
+        products: list[dict[str, Any]] = []
+
+        if product_ids:
+            products = await products_collection.find(
+                {
+                    "_id": {
+                        "$in": product_ids,
+                    }
+                },
+                {
+                    "_id": 1,
+                    "name": 1,
+                    "description": 1,
+                    "media": 1,
+                    "price": 1,
+                    "inventory.quantity": 1,
+                    "inventory.allowBackorders": 1,
+                    "rating": 1,
+                    "reviews": 1,
+                },
+            ).to_list(length=None)
+
+        product_map = {
+            str(product["_id"]): product
+            for product in products
+        }
+
+        populated_items = []
+
+        for item in items:
+            product_id = item.get("productId")
+
+            product = product_map.get(product_id)
+
+            populated_item = {
+                **item,
+                "product": product,
+            }
+
+            populated_items.append(populated_item)
+
+        wishlist["items"] = populated_items
+
         return stringify_object_ids(wishlist)
 
     async def add_item(
@@ -77,9 +135,16 @@ class WishlistService:
             guest_cart_id=guest_cart_id,
         )
 
+        try:
+            product_object_id = ObjectId(product_id)
+        except Exception as exc:
+            raise WishlistServiceError(
+                "Invalid product ID."
+            ) from exc
+
         product = await products_collection.find_one(
             {
-                "_id": ObjectId(product_id),
+                "_id": product_object_id,
             }
         )
 
@@ -117,7 +182,9 @@ class WishlistService:
             return {
                 "success": True,
                 "message": "Product is already in wishlist.",
-                "item": stringify_object_ids(existing_item),
+                "item": stringify_object_ids(
+                    existing_item
+                ),
             }
 
         item = {
@@ -270,7 +337,10 @@ class WishlistService:
                     "_id": ObjectId(),
                     "productId": product_id,
                     "customerId": customer_id,
-                    "createdAt": item.get("createdAt", now),
+                    "createdAt": item.get(
+                        "createdAt",
+                        now,
+                    ),
                     "updatedAt": now,
                 }
             )
@@ -300,18 +370,14 @@ class WishlistService:
             }
         )
 
-        merged_wishlist = await wishlist_collection.find_one(
-            {
-                "_id": customer_wishlist["_id"],
-            }
+        merged_wishlist = await self.get_wishlist(
+            customer_id=customer_id,
         )
 
         return {
             "success": True,
             "message": "Guest wishlist merged successfully.",
-            "wishlist": stringify_object_ids(
-                merged_wishlist or {}
-            ),
+            "wishlist": merged_wishlist,
         }
 
 
