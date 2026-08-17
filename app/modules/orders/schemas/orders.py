@@ -133,7 +133,22 @@ class PublicOrderIn(BaseModel):
         min_length=1,
     )
 
+    # Authenticated customer ID.
     customerId: Optional[str] = None
+
+    # Guest cart identity.
+    #
+    # IMPORTANT:
+    # Do not put guestCartId inside customerId.
+    #
+    # For authenticated checkout:
+    #   customerId = customer ObjectId
+    #   guestCartId = None
+    #
+    # For guest checkout:
+    #   customerId = None
+    #   guestCartId = guest cart UUID
+    guestCartId: Optional[str] = None
 
     deliveryAddress: PublicDeliveryAddressIn
 
@@ -202,6 +217,10 @@ class OrderIn(BaseModel):
     )
 
     customerId: Optional[str] = None
+
+    # Keep guestCartId on the order as well so that
+    # payment completion can clear the correct guest cart.
+    guestCartId: Optional[str] = None
 
     items: list[OrderItemIn] = Field(
         default_factory=list

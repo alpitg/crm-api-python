@@ -676,6 +676,7 @@ class CheckoutService:
             "orderCode": order_code,
             "customerName": order.customerName,
             "customerId": customer_id,
+            "guestCartId": order.guestCartId,
             "items": processed_items,
             "deliveryAddress": (
                 order.deliveryAddress.model_dump()
