@@ -934,7 +934,7 @@ class PaymentService:
 
 
     # ============================================================
-    # CLEAR CART ITEM
+    # CLEAR CART AFTER SUCCESSFUL PAYMENT
     # ============================================================
 
     @staticmethod
@@ -942,36 +942,84 @@ class PaymentService:
         *,
         order: dict[str, Any],
     ) -> None:
-        """Clear customer's cart after successful payment."""
+        """
+        Clear the cart after successful payment.
 
-        customer_id = order.get("customerId")
+        Supports both:
+        - customer carts
+        - guest carts
 
-        if not customer_id:
+        The cart is cleared only after payment has been
+        successfully verified and the order has been marked paid.
+        """
+
+        if not isinstance(order, dict):
             return
 
-        if isinstance(customer_id, ObjectId):
-            customer_object_id = customer_id
-        else:
-            customer_id_string = str(
-                customer_id
-            ).strip()
+        customer_id = order.get("customerId")
+        guest_cart_id = order.get("guestCartId")
 
-            if not ObjectId.is_valid(
-                customer_id_string
-            ):
-                raise PaymentServiceError(
-                    "Invalid customer ID."
+        # --------------------------------------------------------
+        # BUILD CART IDENTITY
+        # --------------------------------------------------------
+
+        cart_filter: dict[str, Any] = {}
+
+        # Logged-in customer
+        if customer_id:
+            if isinstance(customer_id, ObjectId):
+                customer_object_id = customer_id
+            else:
+                customer_id_string = str(
+                    customer_id
+                ).strip()
+
+                if not ObjectId.is_valid(
+                    customer_id_string
+                ):
+                    raise PaymentServiceError(
+                        "Invalid customer ID while clearing cart."
+                    )
+
+                customer_object_id = ObjectId(
+                    customer_id_string
                 )
 
-            customer_object_id = ObjectId(
-                customer_id_string
-            )
+            cart_filter = {
+                "customerId": customer_object_id,
+            }
+
+        # Guest customer
+        elif guest_cart_id:
+            guest_cart_id_string = str(
+                guest_cart_id
+            ).strip()
+
+            if not guest_cart_id_string:
+                return
+
+            cart_filter = {
+                "guestCartId": guest_cart_id_string,
+            }
+
+        # --------------------------------------------------------
+        # NO CART IDENTITY
+        # --------------------------------------------------------
+
+        else:
+            # Nothing to clear.
+            #
+            # This can happen if an order was created without
+            # customerId/guestCartId.
+            return
+
+        # --------------------------------------------------------
+        # CLEAR CART
+        # --------------------------------------------------------
 
         try:
-            await carts_collection.update_one(
-                {
-                    "customerId": customer_object_id
-                },
+            result = await carts_collection.update_one(
+                cart_filter,
                 {
                     "$set": {
                         "items": [],
@@ -981,11 +1029,22 @@ class PaymentService:
                     }
                 },
             )
+
         except Exception as exc:
             raise PaymentServiceError(
                 "Payment succeeded, but cart could not be cleared."
             ) from exc
 
+        # --------------------------------------------------------
+        # CART NOT FOUND
+        # --------------------------------------------------------
+
+        if result.matched_count == 0:
+            # Payment has already succeeded.
+            #
+            # There is nothing left to clear, so do not treat
+            # this as a payment failure.
+            return
 
     # ============================================================
     # JSON SAFE
