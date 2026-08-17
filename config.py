@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
 
+    MSG91_AUTH_KEY = "your_msg91_auth_key"
+    MSG91_SENDER_ID = "YOURID"
+    MSG91_OTP_TEMPLATE_ID = "your_template_id"
+
     class Config:
         env_file = ".env"
 

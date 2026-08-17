@@ -1,43 +1,24 @@
-import random
+import hashlib
+import secrets
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Any
 
 from app.db.mongo import db
-from app.services.auth.token_service import (
-    create_auth_tokens,
-)
+from app.services.auth import sms_service
+from app.services.auth.token_service import create_auth_tokens
 
-
-# ============================================================
-# CONFIG
-# ============================================================
 
 OTP_LENGTH = 6
-
 OTP_EXPIRY_MINUTES = 5
-
 OTP_RESEND_COOLDOWN_SECONDS = 30
-
 MAX_VERIFY_ATTEMPTS = 5
+MAX_OTP_REQUESTS = 5
+OTP_REQUEST_WINDOW_MINUTES = 15
 
 
-# ============================================================
-# COLLECTIONS
-# ============================================================
-
-website_otps_collection = db[
-    "website_otps"
-]
-
-customers_collection = db[
-    "customers"
-]
-
-
-# ============================================================
-# HELPERS
-# ============================================================
+website_otps_collection = db["website_otps"]
+customers_collection = db["customers"]
 
 
 def _now() -> datetime:
@@ -45,26 +26,22 @@ def _now() -> datetime:
 
 
 def _generate_otp() -> str:
-    """
-    Generate a 6-digit OTP.
-    """
-
-    return f"{random.randint(0, 999999):06d}"
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
-def _normalize_mobile(
-    mobile: str,
-) -> str:
-    """
-    Normalize and validate mobile number.
-    """
+def _hash_otp(otp: str) -> str:
+    return hashlib.sha256(
+        otp.encode("utf-8")
+    ).hexdigest()
 
+
+def _normalize_mobile(mobile: str) -> str:
     if not mobile:
         raise ValueError(
             "Mobile number is required."
         )
 
-    mobile = mobile.strip()
+    mobile = str(mobile).strip()
 
     mobile = "".join(
         character
@@ -72,9 +49,19 @@ def _normalize_mobile(
         if character.isdigit()
     )
 
+    if len(mobile) == 12 and mobile.startswith("91"):
+        mobile = mobile[2:]
+
     if len(mobile) != 10:
         raise ValueError(
             "Please enter a valid 10-digit mobile number."
+        )
+
+    if not mobile.startswith(
+        ("6", "7", "8", "9")
+    ):
+        raise ValueError(
+            "Please enter a valid mobile number."
         )
 
     return mobile
@@ -83,10 +70,6 @@ def _normalize_mobile(
 def _normalize_datetime(
     value: datetime,
 ) -> datetime:
-    """
-    Ensure MongoDB datetime is timezone-aware.
-    """
-
     if value.tzinfo is None:
         return value.replace(
             tzinfo=timezone.utc
@@ -95,36 +78,23 @@ def _normalize_datetime(
     return value
 
 
-# ============================================================
-# GENERATE + STORE OTP
-# ============================================================
-
-
 async def generate_and_store_otp(
     mobile: str,
-) -> dict:
-    """
-    Generate and store a new OTP.
+) -> dict[str, Any]:
 
-    Existing OTP for the same mobile number
-    is replaced after cooldown.
-    """
-
-    mobile = _normalize_mobile(
-        mobile
-    )
+    mobile = _normalize_mobile(mobile)
 
     now = _now()
 
-    existing_otp = await website_otps_collection.find_one(
-        {
-            "mobile": mobile,
-        }
+    existing_otp = (
+        await website_otps_collection.find_one(
+            {
+                "mobile": mobile,
+            }
+        )
     )
 
-    # --------------------------------------------------------
-    # RESEND COOLDOWN
-    # --------------------------------------------------------
+    request_count = 0
 
     if existing_otp:
 
@@ -160,22 +130,98 @@ async def generate_and_store_otp(
                     "before requesting another OTP."
                 )
 
-    # --------------------------------------------------------
-    # GENERATE OTP
-    # --------------------------------------------------------
+        request_window_started_at = (
+            existing_otp.get(
+                "request_window_started_at"
+            )
+        )
+
+        if request_window_started_at:
+
+            request_window_started_at = (
+                _normalize_datetime(
+                    request_window_started_at
+                )
+            )
+
+            elapsed_window = (
+                now
+                - request_window_started_at
+            ).total_seconds()
+
+            if (
+                elapsed_window
+                < OTP_REQUEST_WINDOW_MINUTES * 60
+            ):
+
+                request_count = int(
+                    existing_otp.get(
+                        "request_count",
+                        0,
+                    )
+                )
+
+                if (
+                    request_count
+                    >= MAX_OTP_REQUESTS
+                ):
+
+                    raise ValueError(
+                        "Too many OTP requests. "
+                        "Please try again later."
+                    )
+
+            else:
+
+                request_count = 0
 
     otp = _generate_otp()
 
-    expiresAt = (
+    otp_hash = _hash_otp(otp)
+
+    expires_at = (
         now
         + timedelta(
             minutes=OTP_EXPIRY_MINUTES
         )
     )
 
-    # --------------------------------------------------------
-    # STORE
-    # --------------------------------------------------------
+    if (
+        not existing_otp
+        or not existing_otp.get(
+            "request_window_started_at"
+        )
+    ):
+
+        request_window_started_at = now
+
+        request_count = 0
+
+    else:
+
+        request_window_started_at = (
+            _normalize_datetime(
+                existing_otp[
+                    "request_window_started_at"
+                ]
+            )
+        )
+
+        elapsed_window = (
+            now
+            - request_window_started_at
+        ).total_seconds()
+
+        if (
+            elapsed_window
+            >= OTP_REQUEST_WINDOW_MINUTES * 60
+        ):
+
+            request_window_started_at = now
+
+            request_count = 0
+
+    request_count += 1
 
     await website_otps_collection.update_one(
         {
@@ -184,12 +230,16 @@ async def generate_and_store_otp(
         {
             "$set": {
                 "mobile": mobile,
-                "otp": otp,
+                "otp_hash": otp_hash,
                 "created_at": now,
-                "expiresAt": expiresAt,
+                "expiresAt": expires_at,
                 "attempts": 0,
                 "verified": False,
                 "verified_at": None,
+                "request_count": request_count,
+                "request_window_started_at": (
+                    request_window_started_at
+                ),
             }
         },
         upsert=True,
@@ -198,23 +248,15 @@ async def generate_and_store_otp(
     return {
         "mobile": mobile,
         "otp": otp,
-        "expiresAt": expiresAt,
+        "expiresAt": expires_at,
         "expiresIn": OTP_EXPIRY_MINUTES * 60,
         "retryAfter": OTP_RESEND_COOLDOWN_SECONDS,
     }
 
 
-# ============================================================
-# SEND LOGIN OTP
-# ============================================================
-
-
 async def send_login_otp(
     mobile: str,
-) -> dict:
-    """
-    Generate and send login OTP.
-    """
+) -> dict[str, Any]:
 
     try:
 
@@ -229,29 +271,22 @@ async def send_login_otp(
             "message": str(exc),
         }
 
-    # ========================================================
-    # SMS PROVIDER
-    # ========================================================
-    #
-    # IMPORTANT:
-    #
-    # Add your SMS provider here.
-    #
-    # Example:
-    #
-    # await sms_service.send_otp(
-    #     mobile=result["mobile"],
-    #     otp=result["otp"],
-    # )
-    #
-    # ========================================================
+    try:
 
-    # DEVELOPMENT ONLY
-    #
-    # print(
-    #     f"LOGIN OTP for {result['mobile']}: "
-    #     f"{result['otp']}"
-    # )
+        await sms_service.send_otp(
+            mobile=result["mobile"],
+            otp=result["otp"],
+        )
+
+    except Exception as exc:
+
+        await clear_otp(
+            result["mobile"]
+        )
+
+        raise RuntimeError(
+            "Unable to send OTP."
+        ) from exc
 
     return {
         "success": True,
@@ -262,65 +297,19 @@ async def send_login_otp(
     }
 
 
-# ============================================================
-# RESEND LOGIN OTP
-# ============================================================
-
-
 async def resend_login_otp(
     mobile: str,
-) -> dict:
-    """
-    Resend login OTP.
-    """
+) -> dict[str, Any]:
 
-    try:
-
-        result = await generate_and_store_otp(
-            mobile=mobile
-        )
-
-    except ValueError as exc:
-
-        return {
-            "success": False,
-            "message": str(exc),
-        }
-
-    # ========================================================
-    # SMS PROVIDER
-    # ========================================================
-
-    # await sms_service.send_otp(
-    #     mobile=result["mobile"],
-    #     otp=result["otp"],
-    # )
-
-    return {
-        "success": True,
-        "message": "OTP resent successfully.",
-        "mobile": result["mobile"],
-        "expiresIn": result["expiresIn"],
-        "retryAfter": result["retryAfter"],
-    }
-
-
-# ============================================================
-# VERIFY OTP
-# ============================================================
+    return await send_login_otp(
+        mobile=mobile
+    )
 
 
 async def verify_otp(
     mobile: str,
     otp: str,
 ) -> bool:
-    """
-    Verify OTP.
-
-    Returns:
-        True  -> valid
-        False -> invalid / expired / blocked
-    """
 
     try:
 
@@ -333,47 +322,39 @@ async def verify_otp(
         return False
 
     if not otp:
+
         return False
 
-    otp = otp.strip()
+    otp = str(otp).strip()
 
-    if len(otp) != OTP_LENGTH:
+    if (
+        len(otp) != OTP_LENGTH
+        or not otp.isdigit()
+    ):
+
         return False
 
-    if not otp.isdigit():
-        return False
-
-    # --------------------------------------------------------
-    # FIND OTP
-    # --------------------------------------------------------
-
-    otp_record = await website_otps_collection.find_one(
-        {
-            "mobile": mobile,
-        }
+    otp_record = (
+        await website_otps_collection.find_one(
+            {
+                "mobile": mobile,
+            }
+        )
     )
 
     if not otp_record:
-        return False
 
-    # --------------------------------------------------------
-    # ALREADY VERIFIED
-    # --------------------------------------------------------
+        return False
 
     if otp_record.get("verified"):
+
         return False
 
-    # --------------------------------------------------------
-    # EXPIRY
-    # --------------------------------------------------------
-
-    now = _now()
-
-    expiresAt = otp_record.get(
+    expires_at = otp_record.get(
         "expiresAt"
     )
 
-    if not expiresAt:
+    if not expires_at:
 
         await website_otps_collection.delete_one(
             {
@@ -383,11 +364,13 @@ async def verify_otp(
 
         return False
 
-    expiresAt = _normalize_datetime(
-        expiresAt
+    expires_at = _normalize_datetime(
+        expires_at
     )
 
-    if now >= expiresAt:
+    now = _now()
+
+    if now >= expires_at:
 
         await website_otps_collection.delete_one(
             {
@@ -397,13 +380,11 @@ async def verify_otp(
 
         return False
 
-    # --------------------------------------------------------
-    # MAX ATTEMPTS
-    # --------------------------------------------------------
-
-    attempts = otp_record.get(
-        "attempts",
-        0,
+    attempts = int(
+        otp_record.get(
+            "attempts",
+            0,
+        )
     )
 
     if attempts >= MAX_VERIFY_ATTEMPTS:
@@ -416,18 +397,21 @@ async def verify_otp(
 
         return False
 
-    # --------------------------------------------------------
-    # COMPARE
-    # --------------------------------------------------------
+    submitted_hash = _hash_otp(
+        otp
+    )
 
-    stored_otp = str(
+    stored_hash = str(
         otp_record.get(
-            "otp",
-            ""
+            "otp_hash",
+            "",
         )
     )
 
-    if stored_otp != otp:
+    if not secrets.compare_digest(
+        stored_hash,
+        submitted_hash,
+    ):
 
         await website_otps_collection.update_one(
             {
@@ -442,51 +426,31 @@ async def verify_otp(
 
         return False
 
-    # --------------------------------------------------------
-    # VERIFIED
-    # --------------------------------------------------------
-
-    await website_otps_collection.update_one(
-        {
-            "_id": otp_record["_id"],
-        },
-        {
-            "$set": {
-                "verified": True,
-                "verified_at": now,
-            }
-        },
+    result = (
+        await website_otps_collection.update_one(
+            {
+                "_id": otp_record["_id"],
+                "verified": False,
+                "attempts": {
+                    "$lt": MAX_VERIFY_ATTEMPTS,
+                },
+            },
+            {
+                "$set": {
+                    "verified": True,
+                    "verified_at": now,
+                }
+            },
+        )
     )
 
-    return True
-
-
-# ============================================================
-# VERIFY LOGIN OTP
-# ============================================================
+    return result.modified_count > 0
 
 
 async def verify_login_otp(
     mobile: str,
     otp: str,
-) -> dict:
-    """
-    Complete website login flow.
-
-    Steps:
-
-    1. Verify OTP
-    2. Find customer by mobile
-    3. Create customer if not found
-    4. Generate access token
-    5. Generate refresh token
-    6. Consume OTP
-    7. Return customer + tokens
-    """
-
-    # --------------------------------------------------------
-    # NORMALIZE MOBILE
-    # --------------------------------------------------------
+) -> dict[str, Any]:
 
     try:
 
@@ -501,10 +465,6 @@ async def verify_login_otp(
             "message": str(exc),
         }
 
-    # --------------------------------------------------------
-    # VERIFY OTP
-    # --------------------------------------------------------
-
     verified = await verify_otp(
         mobile=mobile,
         otp=otp,
@@ -517,19 +477,13 @@ async def verify_login_otp(
             "message": "Invalid or expired OTP.",
         }
 
-    # --------------------------------------------------------
-    # FIND CUSTOMER
-    # --------------------------------------------------------
-
-    customer = await customers_collection.find_one(
-        {
-            "mobile": mobile,
-        }
+    customer = (
+        await customers_collection.find_one(
+            {
+                "mobile": mobile,
+            }
+        )
     )
-
-    # --------------------------------------------------------
-    # CREATE CUSTOMER IF NOT FOUND
-    # --------------------------------------------------------
 
     if not customer:
 
@@ -544,60 +498,59 @@ async def verify_login_otp(
             "is_active": True,
         }
 
-        insert_result = (
-            await customers_collection.insert_one(
-                customer_document
+        try:
+
+            insert_result = (
+                await customers_collection.insert_one(
+                    customer_document
+                )
             )
+
+            customer_document["_id"] = (
+                insert_result.inserted_id
+            )
+
+            customer = customer_document
+
+        except Exception:
+
+            customer = (
+                await customers_collection.find_one(
+                    {
+                        "mobile": mobile,
+                    }
+                )
+            )
+
+            if not customer:
+
+                raise
+
+    if (
+        customer.get(
+            "is_active",
+            True,
         )
-
-        customer_document["_id"] = (
-            insert_result.inserted_id
-        )
-
-        customer = customer_document
-
-    # --------------------------------------------------------
-    # CUSTOMER ACTIVE CHECK
-    # --------------------------------------------------------
-
-    if customer.get(
-        "is_active",
-        True,
-    ) is False:
+        is False
+    ):
 
         return {
             "success": False,
             "message": "Customer account is inactive.",
         }
 
-    # --------------------------------------------------------
-    # CUSTOMER ID
-    # --------------------------------------------------------
-
     customer_id = str(
         customer["_id"]
     )
-
-    # --------------------------------------------------------
-    # CREATE JWT TOKENS
-    # --------------------------------------------------------
 
     tokens = create_auth_tokens(
         customer_id=customer_id,
         mobile=mobile,
     )
 
-    # --------------------------------------------------------
-    # CONSUME OTP
-    # --------------------------------------------------------
-
     await consume_verified_otp(
         mobile=mobile
     )
-
-    # --------------------------------------------------------
-    # RESPONSE
-    # --------------------------------------------------------
 
     return {
         "success": True,
@@ -630,19 +583,9 @@ async def verify_login_otp(
     }
 
 
-# ============================================================
-# CONSUME VERIFIED OTP
-# ============================================================
-
-
 async def consume_verified_otp(
     mobile: str,
 ) -> bool:
-    """
-    Delete verified OTP.
-
-    Prevents OTP reuse.
-    """
 
     try:
 
@@ -654,29 +597,21 @@ async def consume_verified_otp(
 
         return False
 
-    result = await website_otps_collection.delete_one(
-        {
-            "mobile": mobile,
-            "verified": True,
-        }
+    result = (
+        await website_otps_collection.delete_one(
+            {
+                "mobile": mobile,
+                "verified": True,
+            }
+        )
     )
 
-    return (
-        result.deleted_count > 0
-    )
-
-
-# ============================================================
-# CLEAR OTP
-# ============================================================
+    return result.deleted_count > 0
 
 
 async def clear_otp(
     mobile: str,
 ) -> None:
-    """
-    Delete OTP for mobile.
-    """
 
     try:
 
@@ -695,17 +630,9 @@ async def clear_otp(
     )
 
 
-# ============================================================
-# OTP STATUS
-# ============================================================
-
-
 async def get_otp_status(
     mobile: str,
-) -> Optional[dict]:
-    """
-    Get OTP status without exposing OTP.
-    """
+) -> Optional[dict[str, Any]]:
 
     try:
 
@@ -717,16 +644,19 @@ async def get_otp_status(
 
         return None
 
-    record = await website_otps_collection.find_one(
-        {
-            "mobile": mobile,
-        },
-        {
-            "otp": 0,
-        },
+    record = (
+        await website_otps_collection.find_one(
+            {
+                "mobile": mobile,
+            },
+            {
+                "otp_hash": 0,
+            },
+        )
     )
 
     if not record:
+
         return None
 
     return {
@@ -750,29 +680,24 @@ async def get_otp_status(
         "verified_at": record.get(
             "verified_at"
         ),
+        "retryAfter": (
+            OTP_RESEND_COOLDOWN_SECONDS
+        ),
     }
 
 
-# ============================================================
-# CLEANUP EXPIRED OTPs
-# ============================================================
-
-
 async def delete_expired_otps() -> int:
-    """
-    Delete expired OTP records.
-
-    Can be called from a scheduled background job.
-    """
 
     now = _now()
 
-    result = await website_otps_collection.delete_many(
-        {
-            "expiresAt": {
-                "$lt": now,
+    result = (
+        await website_otps_collection.delete_many(
+            {
+                "expiresAt": {
+                    "$lt": now,
+                }
             }
-        }
+        )
     )
 
     return result.deleted_count

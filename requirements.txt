@@ -27,3 +27,5 @@ reportlab
 azure-storage-blob
 
 razorpay
+
+httpx
