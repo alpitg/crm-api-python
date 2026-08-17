@@ -14,7 +14,7 @@ from config import settings
 
 
 orders_collection = db["orders"]
-
+carts_collection = db["carts"]
 
 class PaymentServiceError(Exception):
     """Raised when payment processing fails."""
@@ -424,6 +424,10 @@ class PaymentService:
             updated_at=now,
         )
 
+        await self._clear_cart(
+            order=order,
+        )
+
         # --------------------------------------------------------
         # GET UPDATED ORDER
         # --------------------------------------------------------
@@ -451,6 +455,8 @@ class PaymentService:
             raise PaymentServiceError(
                 "Updated invoice could not be retrieved."
             )
+
+
 
         # --------------------------------------------------------
         # RESPONSE
@@ -925,6 +931,61 @@ class PaymentService:
         raise PaymentServiceError(
             "Failed to update order payment status."
         )
+
+
+    # ============================================================
+    # CLEAR CART ITEM
+    # ============================================================
+
+    @staticmethod
+    async def _clear_cart(
+        *,
+        order: dict[str, Any],
+    ) -> None:
+        """Clear customer's cart after successful payment."""
+
+        customer_id = order.get("customerId")
+
+        if not customer_id:
+            return
+
+        if isinstance(customer_id, ObjectId):
+            customer_object_id = customer_id
+        else:
+            customer_id_string = str(
+                customer_id
+            ).strip()
+
+            if not ObjectId.is_valid(
+                customer_id_string
+            ):
+                raise PaymentServiceError(
+                    "Invalid customer ID."
+                )
+
+            customer_object_id = ObjectId(
+                customer_id_string
+            )
+
+        try:
+            await carts_collection.update_one(
+                {
+                    "customerId": customer_object_id
+                },
+                {
+                    "$set": {
+                        "items": [],
+                        "updatedAt": datetime.now(
+                            timezone.utc
+                        ),
+                    }
+                },
+            )
+        except Exception as exc:
+            raise PaymentServiceError(
+                "Payment succeeded, but cart could not be cleared."
+            ) from exc
+
 
     # ============================================================
     # JSON SAFE
