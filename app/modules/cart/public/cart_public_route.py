@@ -11,7 +11,7 @@ from app.modules.cart.schemas.cart import (
     RemoveCartItemIn,
     ClearCartIn,
 )
-from app.modules.products.schemas.product import ProductIn, ProductTax
+from app.modules.products.schemas.product import ProductIn
 from app.utils.pricing import calculate_item_pricing
 
 router = APIRouter()
@@ -37,21 +37,19 @@ def get_cart_owner_query(
     guest_cart_id: str | None = None,
 ):
     """
-    A cart can belong to either:
+    Build the MongoDB query for a cart owner.
 
-    Logged-in customer:
+    Customer cart:
         {
             "customerId": "...",
             "guestCartId": None
         }
 
-    Guest:
+    Guest cart:
         {
             "guestCartId": "...",
             "customerId": None
         }
-
-    customerId has priority if both are supplied.
     """
 
     if customer_id:
@@ -108,6 +106,10 @@ def validate_quantity(quantity: int):
 
 
 async def get_product(product_id: str):
+    """
+    Fetch only published products.
+    """
+
     if not product_id or not ObjectId.is_valid(product_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -131,39 +133,43 @@ async def get_product(product_id: str):
 
 
 def get_product_price(product: ProductIn) -> float:
+    """
+    Return current unit selling price.
+
+    Kept here for add-item validation.
+    """
+
     price = product.get("price") or {}
 
     return float(
         price.get("sellingPrice")
+        or price.get("basePrice")
         or price.get("price")
         or 0
     )
+
 
 def get_product_discount(product: ProductIn) -> dict:
+    """
+    Return configured discount information.
+    """
+
     price = product.get("price") or {}
-
-    return price.get("discount") or {}
-
-def get_product_mrp(product: ProductIn) -> float:
-    price = product.get("price") or {}
-
-    return float(
-        price.get("mrp")
-        or price.get("basePrice")
-        or price.get("sellingPrice")
-        or price.get("price")
-        or 0
-    )
-
-def get_product_tax(product: ProductIn) -> ProductTax:
-    price = product.get("price") or {}
-    tax = price.get("tax") or {}
+    discount = price.get("discount") or {}
 
     return {
-        "rate": float(tax.get("rate") or 0),
-        "included": bool(tax.get("included", False)),
-        "className": tax.get("className"),
+        "isActive": bool(
+            discount.get("isActive", False)
+        ),
+        "type": discount.get(
+            "type",
+            "none",
+        ),
+        "value": float(
+            discount.get("value") or 0
+        ),
     }
+
 
 # ============================================================
 # Cart Response
@@ -171,17 +177,41 @@ def get_product_tax(product: ProductIn) -> ProductTax:
 
 async def build_cart_response(cart: dict | None):
     """
-    Always calculate pricing from current product data.
+    Build the cart response using CURRENT product pricing.
 
-    Frontend is NOT the source of truth for:
-    - MRP
-    - selling price
-    - discount
-    - tax
-    - shipping
-    - misc charges
-    - grand total
+    Cart database stores only:
+        - productId
+        - productType
+        - quantity
+        - customizedDetails
+
+    Pricing is always recalculated from the current product.
+
+    Pricing utility contract:
+
+        mrp                  -> total MRP
+        unitMrp              -> unit MRP
+
+        sellingPrice         -> total selling price
+        unitSellingPrice     -> unit selling price
+
+        discount             -> total discount
+
+        subtotal             -> total selling price
+
+        tax.amount           -> total tax
+
+        taxAmount            -> total tax
+
+        excludedTaxAmount    -> tax that must be added
+
+        grandTotal           -> subtotal + excluded tax
     """
+
+    # --------------------------------------------------------
+    # Empty cart
+    # --------------------------------------------------------
+
     if not cart:
         return {
             "id": None,
@@ -203,6 +233,7 @@ async def build_cart_response(cart: dict | None):
         }
 
     response_items = []
+
     mrp_total = 0.0
     discount_total = 0.0
     subtotal = 0.0
@@ -210,61 +241,241 @@ async def build_cart_response(cart: dict | None):
     tax_total = 0.0
     excluded_tax_total = 0.0
 
+    # ========================================================
+    # Cart items
+    # ========================================================
+
     for item in cart.get("items", []):
         product_id = item.get("productId")
 
         if not product_id:
             continue
 
+        # ----------------------------------------------------
+        # Get current product
+        # ----------------------------------------------------
+
         try:
             product = await get_product(product_id)
         except HTTPException:
+            # Product may have been unpublished/deleted.
+            # Ignore it from cart response.
             continue
 
-        quantity = int(item.get("quantity", 1))
+        # ----------------------------------------------------
+        # Quantity
+        # ----------------------------------------------------
+
+        try:
+            quantity = int(
+                item.get("quantity", 1)
+            )
+        except (TypeError, ValueError):
+            continue
 
         if quantity < 1:
             continue
 
-        pricing = calculate_item_pricing(product, quantity)
+        # ----------------------------------------------------
+        # Calculate current pricing
+        # ----------------------------------------------------
 
-        mrp_total += pricing["mrp"] * quantity
-        discount_total += pricing["discount"]["amount"]
-        subtotal += pricing["subtotal"]
+        try:
+            pricing = calculate_item_pricing(
+                product,
+                quantity,
+            )
+        except ValueError:
+            # Invalid product pricing.
+            continue
+
+        # ====================================================
+        # IMPORTANT
+        # ====================================================
+        #
+        # pricing["mrp"]              = total MRP
+        # pricing["discount"]         = float
+        # pricing["subtotal"]         = total selling price
+        # pricing["taxAmount"]        = total tax
+        # pricing["excludedTaxAmount"] = tax to add
+        #
+        # Do NOT multiply these values by quantity again.
+        # ====================================================
+
+        mrp_total += float(
+            pricing["mrp"]
+        )
+
+        discount_total += float(
+            pricing["discount"]
+        )
+
+        subtotal += float(
+            pricing["subtotal"]
+        )
+
         total_quantity += quantity
-        tax_total += pricing["tax"]["amount"]
-        excluded_tax_total += pricing["excludedTax"]
+
+        tax_total += float(
+            pricing["taxAmount"]
+        )
+
+        excluded_tax_total += float(
+            pricing["excludedTaxAmount"]
+        )
+
+        # ----------------------------------------------------
+        # Product image
+        # ----------------------------------------------------
 
         media = product.get("media") or []
+
         image = None
 
-        if media and isinstance(media[0], dict):
+        if (
+            media
+            and isinstance(media, list)
+            and isinstance(media[0], dict)
+        ):
             image = media[0].get("url")
 
-        response_items.append({
-            "productId": product_id,
-            "productType": item.get("productType", "physical"),
-            "quantity": quantity,
-            "name": product.get("name"),
-            "description": product.get("description"),
-            "image": image,
-            "price": {
-                "mrp": round(pricing["mrp"], 2),
-                "sellingPrice": round(pricing["sellingPrice"], 2),
-                "discount": get_product_discount(product),
-                "tax": {
-                    "rate": pricing["tax"]["rate"],
-                    "included": pricing["tax"]["included"],
-                    "className": pricing["tax"]["className"],
-                    "amount": round(pricing["tax"]["amount"], 2),
+        # ----------------------------------------------------
+        # Product tax
+        # ----------------------------------------------------
+
+        tax = pricing.get("tax") or {}
+
+        # ----------------------------------------------------
+        # Response item
+        # ----------------------------------------------------
+
+        response_items.append(
+            {
+                "productId": product_id,
+
+                "productType": item.get(
+                    "productType",
+                    "physical",
+                ),
+
+                "quantity": quantity,
+
+                "name": product.get("name"),
+
+                "description": product.get(
+                    "description"
+                ),
+
+                "image": image,
+
+                "price": {
+                    # ----------------------------------------
+                    # UNIT prices
+                    # ----------------------------------------
+
+                    "mrp": round(
+                        float(
+                            pricing.get(
+                                "unitMrp",
+                                0,
+                            )
+                        ),
+                        2,
+                    ),
+
+                    "sellingPrice": round(
+                        float(
+                            pricing.get(
+                                "unitSellingPrice",
+                                0,
+                            )
+                        ),
+                        2,
+                    ),
+
+                    # ----------------------------------------
+                    # Configured discount
+                    # ----------------------------------------
+
+                    "discount": get_product_discount(
+                        product
+                    ),
+
+                    # ----------------------------------------
+                    # Tax
+                    # ----------------------------------------
+
+                    "tax": {
+                        "rate": float(
+                            tax.get(
+                                "rate",
+                                0,
+                            )
+                        ),
+
+                        "included": bool(
+                            tax.get(
+                                "included",
+                                False,
+                            )
+                        ),
+
+                        "className": tax.get(
+                            "className"
+                        ),
+
+                        # This is the TOTAL tax
+                        # for this line.
+                        "amount": round(
+                            float(
+                                tax.get(
+                                    "amount",
+                                    0,
+                                )
+                            ),
+                            2,
+                        ),
+                    },
                 },
-            },
-            "itemTotal": round(pricing["subtotal"], 2),
-            "customizedDetails": item.get("customizedDetails"),
-        })
+
+                # ------------------------------------------------
+                # Total item selling price before excluded tax.
+                #
+                # Example:
+                #
+                # unit selling price = 100
+                # quantity = 3
+                #
+                # itemTotal = 300
+                # ------------------------------------------------
+
+                "itemTotal": round(
+                    float(
+                        pricing["subtotal"]
+                    ),
+                    2,
+                ),
+
+                "customizedDetails": item.get(
+                    "customizedDetails"
+                ),
+            }
+        )
+
+    # ========================================================
+    # Additional charges
+    # ========================================================
+
+    # TODO:
+    # Replace these with your actual shipping/misc calculation
+    # when those rules are implemented.
 
     shipping = 0.0
     misc_charges = 0.0
+
+    # ========================================================
+    # Grand total
+    # ========================================================
 
     grand_total = (
         subtotal
@@ -273,22 +484,70 @@ async def build_cart_response(cart: dict | None):
         + misc_charges
     )
 
+    # ========================================================
+    # Response
+    # ========================================================
+
     return {
-        "id": cart.get("id"),
-        "customerId": cart.get("customerId"),
-        "guestCartId": cart.get("guestCartId"),
+        # MongoDB uses _id, not id.
+        "id": str(cart["_id"]),
+
+        "customerId": cart.get(
+            "customerId"
+        ),
+
+        "guestCartId": cart.get(
+            "guestCartId"
+        ),
+
         "items": response_items,
+
         "summary": {
-            "totalItems": len(response_items),
+            "totalItems": len(
+                response_items
+            ),
+
             "totalQuantity": total_quantity,
-            "mrp": round(mrp_total, 2),
-            "discount": round(discount_total, 2),
-            "subtotal": round(subtotal, 2),
-            "shipping": round(shipping, 2),
-            "totalTax": round(tax_total, 2),
-            "taxToAdd": round(excluded_tax_total, 2),
-            "miscCharges": round(misc_charges, 2),
-            "grandTotal": round(grand_total, 2),
+
+            "mrp": round(
+                mrp_total,
+                2,
+            ),
+
+            "discount": round(
+                discount_total,
+                2,
+            ),
+
+            "subtotal": round(
+                subtotal,
+                2,
+            ),
+
+            "shipping": round(
+                shipping,
+                2,
+            ),
+
+            "totalTax": round(
+                tax_total,
+                2,
+            ),
+
+            "taxToAdd": round(
+                excluded_tax_total,
+                2,
+            ),
+
+            "miscCharges": round(
+                misc_charges,
+                2,
+            ),
+
+            "grandTotal": round(
+                grand_total,
+                2,
+            ),
         },
     }
 
@@ -306,7 +565,9 @@ async def find_cart(
         guest_cart_id=guest_cart_id,
     )
 
-    return await cart_collection.find_one(query)
+    return await cart_collection.find_one(
+        query
+    )
 
 
 # ============================================================
@@ -327,9 +588,7 @@ async def create_cart(
     cart = {
         "customerId": customer_id,
         "guestCartId": guest_cart_id,
-
         "items": [],
-
         "createdAt": now,
         "updatedAt": now,
     }
@@ -356,19 +615,13 @@ async def get_or_create_cart(
     Get or create a cart.
 
     Logged-in customer:
-
         GET /cart/create?customerId=xxxxx
 
     Guest:
-
         GET /cart/create?guestCartId=xxxxx
 
     First-time guest:
-
         GET /cart/create
-
-    In the last case a guestCartId is generated and
-    returned to the frontend.
     """
 
     # --------------------------------------------------------
@@ -378,7 +631,10 @@ async def get_or_create_cart(
     if customerId and guestCartId:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Provide either customerId or guestCartId, not both.",
+            detail=(
+                "Provide either customerId "
+                "or guestCartId, not both."
+            ),
         )
 
     # --------------------------------------------------------
@@ -407,7 +663,9 @@ async def get_or_create_cart(
             guest_cart_id=guestCartId,
         )
 
-    return await build_cart_response(cart)
+    return await build_cart_response(
+        cart
+    )
 
 
 # ============================================================
@@ -427,13 +685,6 @@ async def add_cart_item(
     If product already exists:
 
         existing quantity + requested quantity
-
-    Example:
-
-        Cart quantity = 2
-        Request quantity = 1
-
-        Result = 3
     """
 
     validate_cart_owner(
@@ -507,7 +758,12 @@ async def add_cart_item(
     if existing_item:
 
         new_quantity = (
-            int(existing_item.get("quantity", 0))
+            int(
+                existing_item.get(
+                    "quantity",
+                    0,
+                )
+            )
             + payload.quantity
         )
 
@@ -515,14 +771,21 @@ async def add_cart_item(
             new_quantity
         )
 
-        existing_item["quantity"] = (
-            new_quantity
-        )
+        existing_item[
+            "quantity"
+        ] = new_quantity
 
         if payload.customizedDetails is not None:
             existing_item[
                 "customizedDetails"
             ] = payload.customizedDetails
+
+        # Keep the original product type unless
+        # the payload explicitly provides one.
+        if payload.productType:
+            existing_item[
+                "productType"
+            ] = payload.productType
 
     # --------------------------------------------------------
     # New item
@@ -591,14 +854,6 @@ async def update_cart_item(
 ):
     """
     Set exact quantity.
-
-    Example:
-
-        quantity = 3
-
-    means:
-
-        item.quantity = 3
     """
 
     validate_cart_owner(
@@ -645,9 +900,9 @@ async def update_cart_item(
                 payload.productId
             )
 
-            item["quantity"] = (
-                payload.quantity
-            )
+            item[
+                "quantity"
+            ] = payload.quantity
 
             if payload.customizedDetails is not None:
                 item[
@@ -660,7 +915,9 @@ async def update_cart_item(
     if not found:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Product is not present in cart.",
+            detail=(
+                "Product is not present in cart."
+            ),
         )
 
     # --------------------------------------------------------
@@ -741,7 +998,9 @@ async def remove_cart_item(
     if len(new_items) == len(items):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Product is not present in cart.",
+            detail=(
+                "Product is not present in cart."
+            ),
         )
 
     # --------------------------------------------------------
@@ -851,24 +1110,25 @@ async def merge_guest_cart(
     """
     Merge a guest cart into a logged-in customer's cart.
 
-    Example:
+    Guest:
+        A x 2
+        B x 1
 
-        Guest:
-            A x 2
-            B x 1
+    Customer:
+        A x 1
+        C x 3
 
-        Customer:
-            A x 1
-            C x 3
+    Result:
+        A x 3
+        B x 1
+        C x 3
 
-        Result:
-
-            A x 3
-            B x 1
-            C x 3
-
-    After successful merge, the guest cart is deleted.
+    After successful merge, guest cart is deleted.
     """
+
+    # --------------------------------------------------------
+    # Validate customer
+    # --------------------------------------------------------
 
     if not payload.customerId:
         raise HTTPException(
@@ -876,11 +1136,19 @@ async def merge_guest_cart(
             detail="customerId is required.",
         )
 
+    # --------------------------------------------------------
+    # Validate guest cart
+    # --------------------------------------------------------
+
     if not payload.guestCartId:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="guestCartId is required.",
         )
+
+    # --------------------------------------------------------
+    # Cannot be same
+    # --------------------------------------------------------
 
     if (
         payload.customerId
@@ -888,7 +1156,10 @@ async def merge_guest_cart(
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="customerId and guestCartId cannot be the same.",
+            detail=(
+                "customerId and guestCartId "
+                "cannot be the same."
+            ),
         )
 
     # --------------------------------------------------------
@@ -903,8 +1174,7 @@ async def merge_guest_cart(
     )
 
     # --------------------------------------------------------
-    # If guest cart doesn't exist
-    # simply return customer cart.
+    # Guest cart doesn't exist
     # --------------------------------------------------------
 
     if not guest_cart:
@@ -931,24 +1201,78 @@ async def merge_guest_cart(
         customer_id=payload.customerId
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # Customer has no cart
-    # Move guest items directly
-    # --------------------------------------------------------
+    # ========================================================
 
     if not customer_cart:
 
         now = utc_now()
 
+        guest_items = guest_cart.get(
+            "items",
+            [],
+        )
+
+        # Validate quantities before moving them.
+        valid_items = []
+
+        for guest_item in guest_items:
+
+            product_id = guest_item.get(
+                "productId"
+            )
+
+            if not product_id:
+                continue
+
+            try:
+                quantity = int(
+                    guest_item.get(
+                        "quantity",
+                        0,
+                    )
+                )
+            except (TypeError, ValueError):
+                continue
+
+            if quantity <= 0:
+                continue
+
+            validate_quantity(
+                quantity
+            )
+
+            # Validate that the product still exists.
+            await get_product(
+                product_id
+            )
+
+            valid_items.append(
+                {
+                    "productId": product_id,
+
+                    "productType": (
+                        guest_item.get(
+                            "productType",
+                            "physical",
+                        )
+                    ),
+
+                    "quantity": quantity,
+
+                    "customizedDetails": (
+                        guest_item.get(
+                            "customizedDetails"
+                        )
+                    ),
+                }
+            )
+
         customer_cart = {
             "customerId": payload.customerId,
             "guestCartId": None,
-
-            "items": guest_cart.get(
-                "items",
-                [],
-            ),
-
+            "items": valid_items,
             "createdAt": now,
             "updatedAt": now,
         }
@@ -961,24 +1285,24 @@ async def merge_guest_cart(
             result.inserted_id
         )
 
-    # --------------------------------------------------------
+    # ========================================================
     # Customer already has cart
-    # --------------------------------------------------------
+    # ========================================================
 
     else:
 
         customer_items = customer_cart.get(
             "items",
-            []
+            [],
         )
 
         guest_items = guest_cart.get(
             "items",
-            []
+            [],
         )
 
         # ----------------------------------------------------
-        # Merge items
+        # Merge guest items
         # ----------------------------------------------------
 
         for guest_item in guest_items:
@@ -989,18 +1313,34 @@ async def merge_guest_cart(
                 )
             )
 
-            guest_quantity = int(
-                guest_item.get(
-                    "quantity",
-                    0,
-                )
-            )
-
             if not guest_product_id:
+                continue
+
+            try:
+                guest_quantity = int(
+                    guest_item.get(
+                        "quantity",
+                        0,
+                    )
+                )
+            except (TypeError, ValueError):
                 continue
 
             if guest_quantity <= 0:
                 continue
+
+            validate_quantity(
+                guest_quantity
+            )
+
+            # Validate product still exists.
+            await get_product(
+                guest_product_id
+            )
+
+            # ------------------------------------------------
+            # Find same product
+            # ------------------------------------------------
 
             existing_item = next(
                 (
@@ -1012,19 +1352,24 @@ async def merge_guest_cart(
                 None,
             )
 
-            # -----------------------------------------------
+            # ------------------------------------------------
             # Same product
-            # -----------------------------------------------
+            # ------------------------------------------------
 
             if existing_item:
 
-                new_quantity = (
-                    int(
+                try:
+                    existing_quantity = int(
                         existing_item.get(
                             "quantity",
                             0,
                         )
                     )
+                except (TypeError, ValueError):
+                    existing_quantity = 0
+
+                new_quantity = (
+                    existing_quantity
                     + guest_quantity
                 )
 
@@ -1036,8 +1381,8 @@ async def merge_guest_cart(
                     "quantity"
                 ] = new_quantity
 
-                # Keep guest customization only
-                # if customer item doesn't have one.
+                # Keep customer customization
+                # if already present.
                 if (
                     not existing_item.get(
                         "customizedDetails"
@@ -1052,15 +1397,17 @@ async def merge_guest_cart(
                         "customizedDetails"
                     )
 
-            # -----------------------------------------------
+            # ------------------------------------------------
             # New product
-            # -----------------------------------------------
+            # ------------------------------------------------
 
             else:
 
                 customer_items.append(
                     {
-                        "productId": guest_product_id,
+                        "productId": (
+                            guest_product_id
+                        ),
 
                         "productType": (
                             guest_item.get(
@@ -1069,7 +1416,9 @@ async def merge_guest_cart(
                             )
                         ),
 
-                        "quantity": guest_quantity,
+                        "quantity": (
+                            guest_quantity
+                        ),
 
                         "customizedDetails": (
                             guest_item.get(
@@ -1095,9 +1444,9 @@ async def merge_guest_cart(
             },
         )
 
-    # --------------------------------------------------------
+    # ========================================================
     # Delete guest cart
-    # --------------------------------------------------------
+    # ========================================================
 
     await cart_collection.delete_one(
         {
@@ -1105,9 +1454,9 @@ async def merge_guest_cart(
         }
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # Return final customer cart
-    # --------------------------------------------------------
+    # ========================================================
 
     updated_cart = await cart_collection.find_one(
         {

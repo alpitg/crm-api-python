@@ -1,133 +1,341 @@
-from pydantic import BaseModel, model_validator
-from typing import Any, Optional, List
 from datetime import datetime
+from typing import Any, Literal, Optional
 
-from app.modules.master.tax_rules.schemas.tax_rules import TaxRuleOut
+from pydantic import BaseModel, Field, model_validator
+
 from app.modules.orders.schemas.invoice import InvoiceIn
 from core.sanitize import sanitize_input
 
-# ---------- Misc Charges ----------
+
 class MiscCharge(BaseModel):
-    label: str
-    amount: float = 0.0
+    label: str = Field(..., min_length=1)
+    amount: float = Field(default=0.0, ge=0)
 
 
-# ---------- Customization ----------
-class FrameDetails(BaseModel):
-    type: Optional[str] = None
-    color: Optional[str] = None
-    width: Optional[float] = 0.0
-    height: Optional[float] = 0.0
-
-class GlassDetails(BaseModel):
-    isEnabled: bool = False
-    type: Optional[str] = None
-    width: Optional[float] = 0.0
-    height: Optional[float] = 0.0
-
-class MountingDetails(BaseModel):
-    isEnabled: bool = False
-    top: Optional[float] = None
-    right: Optional[float] = None
-    bottom: Optional[float] = None
-    left: Optional[float] = None
-
-class AdditionalServices(BaseModel):
-    varnish: bool = False
-    lamination: bool = False
-    routerCut: bool = False
-
-
-class CustomizedDetails(BaseModel):
-    name: str
-    description: Optional[str] = None
-    width: Optional[float] = 0.0
-    height: Optional[float] = 0.0
-    frame: Optional[FrameDetails] = None
-    glass: Optional[GlassDetails] = None
-    mounting: Optional[MountingDetails] = None
-    additional: Optional[AdditionalServices] = None
-
-# ---------- Order Item ----------
 class OrderItemIn(BaseModel):
     productId: Optional[str] = None
     productType: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    quantity: int = 0
-    unitPrice: float = 0.0
-    discountedQuantity: int = 0
-    discountAmount: float = 0.0
-    cancelledQty: int = 0
 
-    taxSnapshot: List[TaxRuleOut] = [] # copy tax details here at time of order
+    quantity: int = Field(
+        default=0,
+        ge=0,
+    )
 
-    customizedDetails: Optional[CustomizedDetails] = None
+    unitPrice: float = Field(
+        default=0.0,
+        ge=0,
+    )
 
-# ---------- Main Order ----------
-class OrderIn(BaseModel):
-    id: Optional[str] = None
-    orderCode: Optional[str] = None
-    customerName: str
-    customerId: Optional[str] = None  # Use ObjectId in backend
-    items: List[OrderItemIn]
-    discountAmount: float = 0.0
-    miscCharges: List[MiscCharge] = []
-    orderStatus: Optional[str] = None
-    invoiceId: Optional[str] = None  # Instead of embedding invoice
-    handledBy: Optional[str] = None
-    createdAt: Optional[datetime] = None  # auto-fill in backend
+    mrp: float = Field(
+        default=0.0,
+        ge=0,
+    )
+
+    discountedQuantity: int = Field(
+        default=0,
+        ge=0,
+    )
+
+    discountAmount: float = Field(
+        default=0.0,
+        ge=0,
+    )
+
+    cancelledQty: int = Field(
+        default=0,
+        ge=0,
+    )
+
+    taxSnapshot: list[dict[str, Any]] = Field(
+        default_factory=list
+    )
+
+
+class PublicDeliveryAddressIn(BaseModel):
+    """Delivery address snapshot stored against the order."""
+
+    name: str = Field(
+        ...,
+        min_length=1,
+    )
+
+    mobile: str = Field(
+        ...,
+        min_length=1,
+    )
+
+    addressType: str = Field(
+        default="home",
+        min_length=1,
+    )
+
+    addressLine1: str = Field(
+        ...,
+        min_length=1,
+    )
+
+    addressLine2: Optional[str] = None
+    landmark: Optional[str] = None
+
+    city: str = Field(
+        ...,
+        min_length=1,
+    )
+
+    state: str = Field(
+        ...,
+        min_length=1,
+    )
+
+    pincode: str = Field(
+        ...,
+        min_length=1,
+    )
+
+
+class PublicOrderItemIn(BaseModel):
+    """
+    Checkout item sent by the website.
+
+    The frontend sends only the product ID,
+    product type and quantity.
+
+    Pricing is calculated by the backend.
+    """
+
+    productId: str = Field(
+        ...,
+        min_length=1,
+    )
+
+    productType: str = Field(
+        default="physical",
+        min_length=1,
+    )
+
+    quantity: int = Field(
+        ...,
+        gt=0,
+    )
+
+
+class PublicOrderIn(BaseModel):
+    """
+    Public website checkout payload.
+
+    Pricing values are calculated by the backend.
+    """
+
+    customerName: str = Field(
+        ...,
+        min_length=1,
+    )
+
+    customerId: Optional[str] = None
+
+    deliveryAddress: PublicDeliveryAddressIn
+
+    paymentMethod: Literal[
+        "cod",
+        "online",
+    ] = "online"
+
+    items: list[PublicOrderItemIn] = Field(
+        ...,
+        min_length=1,
+    )
+
+    miscCharges: list[MiscCharge] = Field(
+        default_factory=list
+    )
+
+    note: Optional[str] = "Website order"
+
+    discountAmount: float = Field(
+        default=0.0,
+        ge=0,
+    )
+
     likelyDateOfDelivery: Optional[datetime] = None
-    note: Optional[str] = ""
-
-# ---------- Output ----------
-class OrderOut(OrderIn):
-    subtotal: Optional[float] = 0.0
-    totalDiscountAmount: Optional[float] = 0.0
-    totalAmount: Optional[float] = 0.0
-    cancelledAmount: Optional[float] = 0.0
-
-class OrderWithInvoiceIn(BaseModel):
-    order: OrderIn
-    invoice: Optional[InvoiceIn] = None
 
     @model_validator(mode="before")
-    def sanitize_empty_strings(cls, values):
+    @classmethod
+    def sanitize_payload(cls, values: Any) -> Any:
         return sanitize_input(values)
 
-class OrderWithInvoiceOut(BaseModel):
-    order: OrderOut
-    invoice: Optional[Any] = None
-
-class OrderDetailOut(BaseModel):
-    order: OrderIn
-    invoice: Optional[Any] = None
-
-
-# ---------- Public Order Item ----------
-class PublicOrderItemIn(BaseModel):
-    productId: str
-    productType: Optional[str] = "physical"
-    quantity: int
-    customizedDetails: Optional[CustomizedDetails] = None
-
-
-# ---------- Public Order ----------
-class PublicOrderIn(BaseModel):
-    customerName: str
-    customerId: Optional[str] = None
-    items: List[PublicOrderItemIn]
-    miscCharges: List[MiscCharge] = []
-    note: Optional[str] = "Website order"
-    discountAmount: Optional[float] = 0.0
-    likelyDateOfDelivery: Optional[datetime] = None
 
 class PublicOrderWithPaymentIn(BaseModel):
     order: PublicOrderIn
 
 
 class VerifyWebsitePaymentIn(BaseModel):
-    orderId: str
-    razorpayPaymentId: str
-    razorpayOrderId: str
-    razorpaySignature: str
+    orderId: str = Field(
+        ...,
+        min_length=1,
+    )
+
+    razorpayPaymentId: str = Field(
+        ...,
+        min_length=1,
+    )
+
+    razorpayOrderId: str = Field(
+        ...,
+        min_length=1,
+    )
+
+    razorpaySignature: str = Field(
+        ...,
+        min_length=1,
+    )
+
+
+class OrderIn(BaseModel):
+    id: Optional[str] = None
+    orderCode: Optional[str] = None
+
+    customerName: str = Field(
+        ...,
+        min_length=1,
+    )
+
+    customerId: Optional[str] = None
+
+    items: list[OrderItemIn] = Field(
+        default_factory=list
+    )
+
+    deliveryAddress: Optional[
+        PublicDeliveryAddressIn
+    ] = None
+
+    paymentMethod: Optional[
+        Literal["cod", "online"]
+    ] = None
+
+    paymentStatus: Optional[str] = None
+
+    discountAmount: float = Field(
+        default=0.0,
+        ge=0,
+    )
+
+    miscCharges: list[MiscCharge] = Field(
+        default_factory=list
+    )
+
+    shippingAmount: float = Field(
+        default=0.0,
+        ge=0,
+    )
+
+    orderStatus: Optional[str] = None
+
+    invoiceId: Optional[str] = None
+
+    handledBy: Optional[str] = None
+
+    createdAt: Optional[datetime] = None
+    updatedAt: Optional[datetime] = None
+
+    likelyDateOfDelivery: Optional[datetime] = None
+
+    note: Optional[str] = ""
+
+
+class OrderOut(OrderIn):
+    subtotal: float = 0.0
+
+    totalDiscountAmount: float = 0.0
+
+    totalTaxAmount: float = 0.0
+
+    includedTaxAmount: float = 0.0
+
+    excludedTaxAmount: float = 0.0
+
+    totalAmount: float = 0.0
+
+    cancelledAmount: float = 0.0
+
+
+class OrderWithInvoiceIn(BaseModel):
+    order: OrderIn
+    invoice: Optional[InvoiceIn] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def sanitize_empty_strings(
+        cls,
+        values: Any,
+    ) -> Any:
+        return sanitize_input(values)
+
+
+class OrderWithInvoiceOut(BaseModel):
+    order: OrderOut
+    invoice: Optional[Any] = None
+
+
+class OrderDetailOut(BaseModel):
+    order: OrderOut
+    invoice: Optional[Any] = None
+
+
+class OrderSummaryOut(BaseModel):
+    id: str
+    orderCode: str
+    customerName: str
+    createdAt: Optional[datetime] = None
+    itemCount: int
+    paymentStatus: Optional[str] = None
+    total: float
+    orderStatus: Optional[str] = None
+
+    class Config:
+        populate_by_name = True
+
+
+class PaginatedOrdersOut(BaseModel):
+    total: int
+    page: int
+    pageSize: int
+    pages: int
+    items: list[OrderSummaryOut]
+
+
+class GetOrdersFilterIn(BaseModel):
+    customerName: Optional[str] = Field(
+        default=None,
+        description=(
+            "Filter orders by customer name "
+            "(partial match)"
+        ),
+    )
+
+    orderCode: Optional[str] = Field(
+        default=None,
+        description=(
+            "Filter orders by order code "
+            "(exact or partial match)"
+        ),
+    )
+
+    page: int = Field(
+        default=1,
+        ge=1,
+        description="Page number (1-based)",
+    )
+
+    pageSize: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Number of results per page",
+    )
+
+    sort: Optional[
+        Literal["newest", "oldest"]
+    ] = "newest"
