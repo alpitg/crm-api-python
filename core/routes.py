@@ -15,12 +15,12 @@ from app.modules.master.mount_type import mount_type_routes
 from app.modules.master.order_status import order_status_routes
 from app.modules.orders import orders_route
 from app.modules.administration import ping
-from app.modules.orders.public import public_checkout
 from app.modules.products import products_route
 from app.modules.invoice import invoice_routes
 from app.modules.products.public import product_public_route
 from app.modules.blob import upload_router
 from app.modules.website.auth import auth, otp
+from app.modules.website.order import orders_router
 from app.modules.website.wishlist import wishlist_router
 
 def setup_router(app: FastAPI) -> None:
@@ -36,9 +36,9 @@ def setup_router(app: FastAPI) -> None:
 
   
     app.include_router(product_public_route.router, prefix="/store", tags=["Public"])
-    app.include_router(public_checkout.router, prefix="/store/orders", tags=["Public"])
     app.include_router(cart_public_route.router, prefix="/store/cart", tags=["Public"])
     app.include_router(wishlist_router.router, prefix="/store/wishlist", tags=["Public"])
+    app.include_router(orders_router.router, prefix="/store/orders", tags=["Public"])
 
     app.include_router(upload_router.router, prefix="/upload", tags=["Public"])
     #endregion

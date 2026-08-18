@@ -1,20 +1,52 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 
-from app.modules.orders.schemas.orders import (
-    PublicOrderIn,
-    VerifyWebsitePaymentIn,
-)
-from app.modules.orders.services.checkout_service import (
-    CheckoutServiceError,
-    checkout_service,
-)
-from app.modules.orders.services.payment_service import (
-    PaymentServiceError,
-    payment_service,
-)
+from app.modules.orders.schemas.orders import PublicOrderIn, VerifyWebsitePaymentIn
+from app.modules.website.order.schemas.orders_schema import WebsiteOrdersResponse
+from app.modules.website.order.services.order_service import WebsiteOrderService
+from app.modules.website.order.services import checkout_service, payment_service
+from app.services.auth.token_service import get_current_customer
+from app.utils.auth_utils import authenticate
+
+from app.db.mongo import db
 from core.sanitize import stringify_object_ids
 
 router = APIRouter()
+
+orders_collection = db["orders"]
+
+order_service = WebsiteOrderService(
+    orders_collection=orders_collection,
+)
+
+
+@router.get(
+    "/search",
+    response_model=WebsiteOrdersResponse,
+)
+async def get_my_orders(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=50),
+    current_user=Depends(get_current_customer)
+):
+    customer_id = current_user["_id"]
+
+    result = await order_service.get_customer_orders(
+        customer_id=customer_id,
+        page=page,
+        limit=limit,
+    )
+
+    return stringify_object_ids({
+        "success": True,
+        "orders": result["orders"],
+        "pagination": {
+            "page": result["page"],
+            "limit": result["limit"],
+            "total": result["total"],
+            "pages": result["pages"],
+        },
+    })
+
 
 
 @router.post(
@@ -33,7 +65,7 @@ async def create_public_checkout(payload: PublicOrderIn):
     """
     try:
         return await checkout_service.create_checkout(payload)
-    except CheckoutServiceError as exc:
+    except checkout_service.CheckoutServiceError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
@@ -67,7 +99,7 @@ async def verify_public_payment(
             "payment": result["payment"],
         }
 
-    except PaymentServiceError as exc:
+    except payment_service.PaymentServiceError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
