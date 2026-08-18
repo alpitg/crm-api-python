@@ -16,6 +16,29 @@ from app.db.mongo import db
 router = APIRouter()
 
 address_collection = db["customer_addresses"]
+customers_collection = db["customers"]
+
+
+class CustomerProfileResponse(BaseModel):
+    id: str
+    name: str
+    email: str
+    description: Optional[str] = None
+    isActive: bool = True
+    createdAt: Optional[datetime] = None
+    updatedAt: Optional[datetime] = None
+
+
+class UpdateCustomerProfileRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    description: Optional[str] = Field(default=None, max_length=500)
+
+
+class CustomerProfileMutationResponse(BaseModel):
+    success: bool
+    message: Optional[str] = None
+    customer: CustomerProfileResponse
+
 
 # ==================================================
 # CONSTANTS
@@ -63,6 +86,28 @@ def serialize_address(address: dict) -> dict:
         "createdAt": address.get("createdAt"),
         "updatedAt": address.get("updatedAt"),
     }
+
+
+# ============================================================
+# HELPERS
+# ============================================================
+
+
+def serialize_customer_profile(customer: dict) -> CustomerProfileResponse:
+    """
+    Convert MongoDB customer document into the public profile response.
+    """
+
+    return CustomerProfileResponse(
+        id=str(customer.get("id") or customer.get("_id")),
+        name=customer.get("name") or "",
+        email=customer.get("email") or "",
+        mobile=customer.get("mobile"),
+        description=customer.get("description"),
+        isActive=customer.get("isActive", True),
+        createdAt=customer.get("createdAt"),
+        updatedAt=customer.get("updatedAt"),
+    )
 
 
 # ==================================================
@@ -669,6 +714,145 @@ async def set_default_address(
         "message": "Default address updated successfully.",
         "address": serialize_address(updated_address),
     }
+
+
+
+
+
+# ============================================================
+# GET PROFILE
+# ============================================================
+
+
+@router.get(
+    "/profile",
+    response_model=CustomerProfileResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_customer_profile(
+    current_customer: dict = Depends(get_current_customer),
+):
+    """
+    Get the currently authenticated customer's profile.
+    """
+
+    customer_id = current_customer.get("id")
+
+    if not customer_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid customer authentication.",
+        )
+
+    customer = await customers_collection.find_one(
+        {"id": customer_id}
+    )
+
+    if not customer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer profile not found.",
+        )
+
+    return serialize_customer_profile(customer)
+
+
+# ============================================================
+# UPDATE PROFILE
+# ============================================================
+
+
+@router.patch(
+    "/profile",
+    response_model=CustomerProfileMutationResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def update_customer_profile(
+    payload: UpdateCustomerProfileRequest,
+    current_customer: dict = Depends(get_current_customer),
+):
+    """
+    Update the currently authenticated customer's profile.
+    """
+
+    customer_id = current_customer.get("id")
+
+    if not customer_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid customer authentication.",
+        )
+
+    customer = await customers_collection.find_one(
+        {"id": customer_id}
+    )
+
+    if not customer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer profile not found.",
+        )
+
+    # ========================================================
+    # BUILD UPDATE
+    # ========================================================
+
+    update_data = {}
+
+    if payload.name is not None:
+        update_data["name"] = payload.name.strip()
+
+    if payload.description is not None:
+        update_data["description"] = payload.description.strip()
+
+    # ========================================================
+    # NOTHING TO UPDATE
+    # ========================================================
+
+    if not update_data:
+        return CustomerProfileMutationResponse(
+            success=True,
+            message="No profile changes were provided.",
+            customer=serialize_customer_profile(customer),
+        )
+
+    # ========================================================
+    # UPDATED AT
+    # ========================================================
+
+    update_data["updatedAt"] = datetime.now(timezone.utc)
+
+    # ========================================================
+    # UPDATE CUSTOMER
+    # ========================================================
+
+    await customers_collection.update_one(
+        {"id": customer_id},
+        {
+            "$set": update_data,
+        },
+    )
+
+    # ========================================================
+    # GET UPDATED CUSTOMER
+    # ========================================================
+
+    updated_customer = await customers_collection.find_one(
+        {"id": customer_id}
+    )
+
+    if not updated_customer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer profile not found after update.",
+        )
+
+    return CustomerProfileMutationResponse(
+        success=True,
+        message="Profile updated successfully.",
+        customer=serialize_customer_profile(updated_customer),
+    )
+
 
 
 # ==================================================
