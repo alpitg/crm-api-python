@@ -280,3 +280,8 @@ docker run -d \
   crm-api-python
 
 ```
+
+
+### SMS service 
+
+link to get - (TWILIO_VERIFY_SERVICE_SID)[https://console.twilio.com/us1/service/verify]

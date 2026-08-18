@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
 
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_API_KEY: str = ""
+    TWILIO_API_SECRET: str = ""
+    TWILIO_VERIFY_SERVICE_SID: str = ""
+
     class Config:
         env_file = ".env"
 
