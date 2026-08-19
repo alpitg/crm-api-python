@@ -736,7 +736,7 @@ async def get_customer_profile(
     Get the currently authenticated customer's profile.
     """
 
-    customer_id = current_customer.get("id")
+    customer_id = current_customer.get("_id")
 
     if not customer_id:
         raise HTTPException(
@@ -745,7 +745,7 @@ async def get_customer_profile(
         )
 
     customer = await customers_collection.find_one(
-        {"id": customer_id}
+        {"_id": customer_id}
     )
 
     if not customer:
@@ -775,7 +775,7 @@ async def update_customer_profile(
     Update the currently authenticated customer's profile.
     """
 
-    customer_id = current_customer.get("id")
+    customer_id = current_customer.get("_id")
 
     if not customer_id:
         raise HTTPException(
@@ -784,7 +784,7 @@ async def update_customer_profile(
         )
 
     customer = await customers_collection.find_one(
-        {"id": customer_id}
+        {"_id": customer_id}
     )
 
     if not customer:
@@ -827,7 +827,7 @@ async def update_customer_profile(
     # ========================================================
 
     await customers_collection.update_one(
-        {"id": customer_id},
+        {"_id": customer_id},
         {
             "$set": update_data,
         },
@@ -838,7 +838,7 @@ async def update_customer_profile(
     # ========================================================
 
     updated_customer = await customers_collection.find_one(
-        {"id": customer_id}
+        {"_id": customer_id}
     )
 
     if not updated_customer:
