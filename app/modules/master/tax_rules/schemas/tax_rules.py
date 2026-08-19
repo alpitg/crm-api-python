@@ -10,7 +10,7 @@ class TaxRuleIn(BaseModel):
     region: Optional[str] = None   # e.g. "IN", "EU", or state code
     valid_from: Optional[datetime] = None
     valid_to: Optional[datetime] = None
-    is_active: bool = True
+    isActive: bool = True
 
 class TaxRuleOut(TaxRuleIn):
     id: str

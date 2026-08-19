@@ -537,11 +537,12 @@ async def verify_login_otp(
 
         customer_document = {
             "mobile": mobile,
-            "name": None,
+            "name": "user",
             "email": None,
-            "created_at": now,
-            "updated_at": now,
-            "is_active": True,
+            "description": None,
+            "createdAt": now,
+            "updatedAt": now,
+            "isActive": True,
         }
 
         insert_result = (
@@ -561,7 +562,7 @@ async def verify_login_otp(
     # --------------------------------------------------------
 
     if customer.get(
-        "is_active",
+        "isActive",
         True,
     ) is False:
 

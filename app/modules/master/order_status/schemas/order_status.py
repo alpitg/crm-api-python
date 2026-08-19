@@ -5,7 +5,7 @@ class OrderStatusIn(BaseModel):
     code: str
     name: str
     description: Optional[str] = ""
-    is_active: Optional[bool] = True
+    isActive: Optional[bool] = True
 
 class OrderStatusOut(OrderStatusIn):
     id: str

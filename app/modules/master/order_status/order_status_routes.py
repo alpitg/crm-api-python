@@ -14,7 +14,7 @@ collection = db["master_order_status"]
 @router.get("", response_model=List[OrderStatusOut])
 async def get_all_order_statuses():
     statuses = []
-    cursor = collection.find({"is_active": True})
+    cursor = collection.find({"isActive": True})
     async for doc in cursor:
         doc["id"] = str(doc["_id"])
         doc.pop("_id", None)
@@ -48,7 +48,7 @@ async def update_order_status(id: str, payload: OrderStatusIn):
 async def delete_order_status(id: str):
     result = await collection.update_one(
         {"_id": ObjectId(id)},
-        {"$set": {"is_active": False}},
+        {"$set": {"isActive": False}},
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Order status not found")

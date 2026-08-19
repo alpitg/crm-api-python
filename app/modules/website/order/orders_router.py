@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 
 from app.modules.orders.schemas.orders import PublicOrderIn, VerifyWebsitePaymentIn
 from app.modules.website.order.schemas.orders_schema import WebsiteOrdersResponse
+from app.modules.website.order.services.checkout_service import CheckoutService
 from app.modules.website.order.services.order_service import WebsiteOrderService
-from app.modules.website.order.services import checkout_service, payment_service
 from app.services.auth.token_service import get_current_customer
 from app.utils.auth_utils import authenticate
 
@@ -18,6 +18,7 @@ order_service = WebsiteOrderService(
     orders_collection=orders_collection,
 )
 
+checkout_service = CheckoutService()
 
 @router.get(
     "/search",
