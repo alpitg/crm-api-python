@@ -45,7 +45,8 @@ my-crm-app/
 | order-status  | `master_order_status`       |
 
 
-
+### Email service - 
+- https://secureserver.titan.email/mail/
 
 
 

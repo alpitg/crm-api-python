@@ -16,6 +16,7 @@ from config import settings
 orders_collection = db["orders"]
 carts_collection = db["carts"]
 
+
 class PaymentServiceError(Exception):
     """Raised when payment processing fails."""
 
@@ -29,21 +30,14 @@ class PaymentService:
             )
         )
 
-    # ============================================================
-    # ID VALIDATION
-    # ============================================================
-
     @staticmethod
     def _to_object_id(
         value: ObjectId | str | None,
         field_name: str,
     ) -> ObjectId:
         """Convert a value to MongoDB ObjectId."""
-
         if value is None:
-            raise PaymentServiceError(
-                f"{field_name} is required."
-            )
+            raise PaymentServiceError(f"{field_name} is required.")
 
         if isinstance(value, ObjectId):
             return value
@@ -51,20 +45,12 @@ class PaymentService:
         value_string = str(value).strip()
 
         if not value_string:
-            raise PaymentServiceError(
-                f"{field_name} is required."
-            )
+            raise PaymentServiceError(f"{field_name} is required.")
 
         if not ObjectId.is_valid(value_string):
-            raise PaymentServiceError(
-                f"Invalid {field_name}."
-            )
+            raise PaymentServiceError(f"Invalid {field_name}.")
 
         return ObjectId(value_string)
-
-    # ============================================================
-    # STRING VALIDATION
-    # ============================================================
 
     @staticmethod
     def _validate_string(
@@ -72,80 +58,66 @@ class PaymentService:
         field_name: str,
     ) -> str:
         """Validate and normalize a required string."""
-
         if value is None:
-            raise PaymentServiceError(
-                f"{field_name} is required."
-            )
+            raise PaymentServiceError(f"{field_name} is required.")
 
         if not isinstance(value, str):
-            raise PaymentServiceError(
-                f"Invalid {field_name}."
-            )
+            raise PaymentServiceError(f"Invalid {field_name}.")
 
         value = value.strip()
 
         if not value:
-            raise PaymentServiceError(
-                f"{field_name} is required."
-            )
+            raise PaymentServiceError(f"{field_name} is required.")
 
         return value
 
-    # ============================================================
-    # CREATE RAZORPAY ORDER
-    # ============================================================
+    @staticmethod
+    def _get_amount_in_paise(amount: Any) -> int:
+        """Convert INR amount to paise safely."""
+        if amount is None:
+            raise PaymentServiceError("Payment amount is required.")
+
+        try:
+            amount_decimal = Decimal(str(amount))
+        except (TypeError, ValueError, ArithmeticError) as exc:
+            raise PaymentServiceError("Invalid payment amount.") from exc
+
+        if amount_decimal <= 0:
+            raise PaymentServiceError(
+                "Payment amount must be greater than zero."
+            )
+
+        amount_paise = int(amount_decimal * 100)
+
+        if amount_paise <= 0:
+            raise PaymentServiceError(
+                "Payment amount must be greater than zero."
+            )
+
+        return amount_paise
 
     def create_razorpay_order(
         self,
         *,
-        amount: float,
+        amount: float | Decimal,
         order_id: ObjectId | str,
         order_code: str,
         invoice_id: ObjectId | str,
     ) -> dict[str, Any]:
         """Create a Razorpay order."""
-
-        if amount is None:
-            raise PaymentServiceError(
-                "Payment amount is required."
-            )
-
-        try:
-            amount_value = float(amount)
-        except (TypeError, ValueError) as exc:
-            raise PaymentServiceError(
-                "Invalid payment amount."
-            ) from exc
-
-        if amount_value <= 0:
-            raise PaymentServiceError(
-                "Razorpay order amount must be greater than zero."
-            )
-
         order_object_id = self._to_object_id(
             order_id,
             "order ID",
         )
-
         invoice_object_id = self._to_object_id(
             invoice_id,
             "invoice ID",
         )
-
         order_code = self._validate_string(
             order_code,
             "order code",
         )
-
-        razorpay_amount = int(
-            round(amount_value * 100)
-        )
-
-        if razorpay_amount <= 0:
-            raise PaymentServiceError(
-                "Razorpay order amount must be greater than zero."
-            )
+        razorpay_amount = self._get_amount_in_paise(amount)
 
         try:
             razorpay_order = self.client.order.create(
@@ -155,13 +127,9 @@ class PaymentService:
                     "receipt": order_code,
                     "payment_capture": 1,
                     "notes": {
-                        "order_id": str(
-                            order_object_id
-                        ),
+                        "order_id": str(order_object_id),
                         "order_code": order_code,
-                        "invoice_id": str(
-                            invoice_object_id
-                        ),
+                        "invoice_id": str(invoice_object_id),
                     },
                 }
             )
@@ -170,40 +138,22 @@ class PaymentService:
                 "Failed to create Razorpay order."
             ) from exc
 
-        if not isinstance(
-            razorpay_order,
-            dict,
-        ):
-            raise PaymentServiceError(
-                "Invalid Razorpay response."
-            )
+        if not isinstance(razorpay_order, dict):
+            raise PaymentServiceError("Invalid Razorpay response.")
 
-        razorpay_order_id = razorpay_order.get(
-            "id"
-        )
+        razorpay_order_id = razorpay_order.get("id")
 
-        if not isinstance(
-            razorpay_order_id,
-            str,
-        ):
+        if not isinstance(razorpay_order_id, str):
             raise PaymentServiceError(
                 "Razorpay did not return a valid order ID."
             )
 
-        razorpay_order_id = (
-            razorpay_order_id.strip()
-        )
-
-        if not razorpay_order_id:
+        if not razorpay_order_id.strip():
             raise PaymentServiceError(
                 "Razorpay did not return an order ID."
             )
 
         return razorpay_order
-
-    # ============================================================
-    # VERIFY PAYMENT
-    # ============================================================
 
     async def verify_payment(
         self,
@@ -214,44 +164,25 @@ class PaymentService:
         razorpay_signature: str,
     ) -> dict[str, Any]:
         """Verify and finalize a Razorpay payment."""
-
         order_object_id = self._to_object_id(
             order_id,
             "order ID",
         )
-
-        razorpay_payment_id = (
-            self._validate_string(
-                razorpay_payment_id,
-                "Razorpay payment ID",
-            )
+        razorpay_payment_id = self._validate_string(
+            razorpay_payment_id,
+            "Razorpay payment ID",
+        )
+        razorpay_order_id = self._validate_string(
+            razorpay_order_id,
+            "Razorpay order ID",
+        )
+        razorpay_signature = self._validate_string(
+            razorpay_signature,
+            "Razorpay signature",
         )
 
-        razorpay_order_id = (
-            self._validate_string(
-                razorpay_order_id,
-                "Razorpay order ID",
-            )
-        )
-
-        razorpay_signature = (
-            self._validate_string(
-                razorpay_signature,
-                "Razorpay signature",
-            )
-        )
-
-        order = await self._get_order(
-            order_object_id
-        )
-
-        invoice = await self._get_invoice(
-            order
-        )
-
-        # --------------------------------------------------------
-        # ALREADY PAID
-        # --------------------------------------------------------
+        order = await self._get_order(order_object_id)
+        invoice = await self._get_invoice(order)
 
         if (
             order.get("paymentStatus") == "paid"
@@ -259,226 +190,102 @@ class PaymentService:
         ):
             return {
                 "already_verified": True,
-                "order": self._make_json_safe(
-                    order
-                ),
-                "invoice": self._make_json_safe(
-                    invoice
-                ),
+                "order": self._make_json_safe(order),
+                "invoice": self._make_json_safe(invoice),
                 "payment": None,
                 "paid_at": None,
             }
 
-        # --------------------------------------------------------
-        # PAYMENT METHOD
-        # --------------------------------------------------------
-
-        payment_method = order.get(
-            "paymentMethod"
-        )
+        payment_method = order.get("paymentMethod")
 
         if payment_method != "online":
             raise PaymentServiceError(
                 "This order is not an online payment order."
             )
 
-        # --------------------------------------------------------
-        # INVOICE RAZORPAY DATA
-        # --------------------------------------------------------
+        razorpay_data = invoice.get("razorpay") or {}
 
-        razorpay_data = invoice.get(
-            "razorpay"
-        )
-
-        if razorpay_data is None:
-            razorpay_data = {}
-
-        if not isinstance(
-            razorpay_data,
-            dict,
-        ):
+        if not isinstance(razorpay_data, dict):
             raise PaymentServiceError(
                 "Invalid Razorpay invoice data."
             )
 
-        stored_razorpay_order_id = (
-            razorpay_data.get("orderId")
+        stored_razorpay_order_id = self._validate_string(
+            razorpay_data.get("orderId"),
+            "Stored Razorpay order ID",
         )
 
-        stored_razorpay_order_id = (
-            self._validate_string(
-                stored_razorpay_order_id,
-                "Stored Razorpay order ID",
-            )
-        )
-
-        # --------------------------------------------------------
-        # RAZORPAY ORDER ID MATCH
-        # --------------------------------------------------------
-
-        if (
-            stored_razorpay_order_id
-            != razorpay_order_id
-        ):
+        if stored_razorpay_order_id != razorpay_order_id:
             raise PaymentServiceError(
                 "Razorpay order ID mismatch."
             )
 
-        # --------------------------------------------------------
-        # DUPLICATE PAYMENT
-        # --------------------------------------------------------
-
         self._check_existing_payment(
             invoice=invoice,
-            razorpay_payment_id=(
-                razorpay_payment_id
-            ),
+            razorpay_payment_id=razorpay_payment_id,
         )
-
-        # --------------------------------------------------------
-        # VERIFY SIGNATURE
-        # --------------------------------------------------------
 
         self._verify_signature(
-            razorpay_order_id=(
-                stored_razorpay_order_id
-            ),
-            razorpay_payment_id=(
-                razorpay_payment_id
-            ),
-            razorpay_signature=(
-                razorpay_signature
-            ),
+            razorpay_order_id=stored_razorpay_order_id,
+            razorpay_payment_id=razorpay_payment_id,
+            razorpay_signature=razorpay_signature,
         )
 
-        # --------------------------------------------------------
-        # FETCH PAYMENT
-        # --------------------------------------------------------
-
-        payment = self._fetch_payment(
-            razorpay_payment_id
-        )
-
-        # --------------------------------------------------------
-        # EXPECTED AMOUNT
-        # --------------------------------------------------------
-
-        expected_amount = (
-            self._get_order_amount(order)
-        )
-
-        # --------------------------------------------------------
-        # VALIDATE PAYMENT
-        # --------------------------------------------------------
+        payment = self._fetch_payment(razorpay_payment_id)
+        expected_amount = self._get_order_amount(order)
 
         self._validate_payment(
             payment=payment,
-            razorpay_order_id=(
-                stored_razorpay_order_id
-            ),
+            razorpay_order_id=stored_razorpay_order_id,
             expected_amount=expected_amount,
         )
 
         now = datetime.now(timezone.utc)
-
-        # --------------------------------------------------------
-        # INVOICE ID
-        # --------------------------------------------------------
 
         invoice_id = self._to_object_id(
             invoice.get("_id"),
             "invoice ID",
         )
 
-        # --------------------------------------------------------
-        # MARK INVOICE PAID
-        # --------------------------------------------------------
-
         try:
             await invoice_service.mark_as_paid(
                 invoice_id=invoice_id,
-                payment_id=(
-                    razorpay_payment_id
-                ),
-                razorpay_order_id=(
-                    stored_razorpay_order_id
-                ),
+                payment_id=razorpay_payment_id,
+                razorpay_order_id=stored_razorpay_order_id,
                 signature=razorpay_signature,
-                payment_method=payment.get(
-                    "method"
-                ),
+                payment_method=payment.get("method"),
                 amount=expected_amount,
                 paid_at=now,
             )
         except InvoiceServiceError as exc:
-            raise PaymentServiceError(
-                str(exc)
-            ) from exc
-
-        # --------------------------------------------------------
-        # MARK ORDER PAID
-        # --------------------------------------------------------
+            raise PaymentServiceError(str(exc)) from exc
 
         await self._mark_order_paid(
             order_id=order_object_id,
             updated_at=now,
         )
 
-        await self._clear_cart(
-            order=order,
-        )
+        await self._clear_cart(order=order)
 
-        # --------------------------------------------------------
-        # GET UPDATED ORDER
-        # --------------------------------------------------------
-
-        updated_order = await self._get_order(
-            order_object_id
-        )
-
-        # --------------------------------------------------------
-        # GET UPDATED INVOICE
-        # --------------------------------------------------------
+        updated_order = await self._get_order(order_object_id)
 
         try:
-            updated_invoice = (
-                await invoice_service.get_invoice(
-                    invoice_id
-                )
-            )
+            updated_invoice = await invoice_service.get_invoice(invoice_id)
         except InvoiceServiceError as exc:
-            raise PaymentServiceError(
-                str(exc)
-            ) from exc
+            raise PaymentServiceError(str(exc)) from exc
 
         if not updated_invoice:
             raise PaymentServiceError(
                 "Updated invoice could not be retrieved."
             )
 
-
-
-        # --------------------------------------------------------
-        # RESPONSE
-        # --------------------------------------------------------
-
         return {
             "already_verified": False,
-            "order": self._make_json_safe(
-                updated_order
-            ),
-            "invoice": self._make_json_safe(
-                updated_invoice
-            ),
-            "payment": self._make_json_safe(
-                payment
-            ),
+            "order": self._make_json_safe(updated_order),
+            "invoice": self._make_json_safe(updated_invoice),
+            "payment": self._make_json_safe(payment),
             "paid_at": now.isoformat(),
         }
-
-    # ============================================================
-    # GET ORDER
-    # ============================================================
 
     @classmethod
     async def _get_order(
@@ -486,36 +293,22 @@ class PaymentService:
         order_id: ObjectId | str,
     ) -> dict[str, Any]:
         """Get an order by MongoDB ID."""
-
         order_object_id = cls._to_object_id(
             order_id,
             "order ID",
         )
 
         order = await orders_collection.find_one(
-            {
-                "_id": order_object_id
-            }
+            {"_id": order_object_id}
         )
 
         if not order:
-            raise PaymentServiceError(
-                "Order not found."
-            )
+            raise PaymentServiceError("Order not found.")
 
-        if not isinstance(
-            order,
-            dict,
-        ):
-            raise PaymentServiceError(
-                "Invalid order data."
-            )
+        if not isinstance(order, dict):
+            raise PaymentServiceError("Invalid order data.")
 
         return order
-
-    # ============================================================
-    # GET INVOICE
-    # ============================================================
 
     @classmethod
     async def _get_invoice(
@@ -523,89 +316,46 @@ class PaymentService:
         order: dict[str, Any],
     ) -> dict[str, Any]:
         """Get the invoice belonging to an order."""
+        if not isinstance(order, dict):
+            raise PaymentServiceError("Invalid order data.")
 
-        if not isinstance(
-            order,
-            dict,
-        ):
-            raise PaymentServiceError(
-                "Invalid order data."
-            )
-
-        invoice_id = order.get(
-            "invoiceId"
-        )
-
-        invoice_object_id = cls._to_object_id(
-            invoice_id,
+        invoice_id = cls._to_object_id(
+            order.get("invoiceId"),
             "invoice ID",
         )
 
         try:
-            invoice = (
-                await invoice_service.get_invoice(
-                    invoice_object_id
-                )
-            )
+            invoice = await invoice_service.get_invoice(invoice_id)
         except InvoiceServiceError as exc:
-            raise PaymentServiceError(
-                str(exc)
-            ) from exc
+            raise PaymentServiceError(str(exc)) from exc
 
         if not invoice:
-            raise PaymentServiceError(
-                "Invoice not found."
-            )
+            raise PaymentServiceError("Invoice not found.")
 
-        if not isinstance(
-            invoice,
-            dict,
-        ):
-            raise PaymentServiceError(
-                "Invalid invoice data."
-            )
+        if not isinstance(invoice, dict):
+            raise PaymentServiceError("Invalid invoice data.")
 
         return invoice
-
-    # ============================================================
-    # GET ORDER AMOUNT
-    # ============================================================
 
     @staticmethod
     def _get_order_amount(
         order: dict[str, Any],
     ) -> float:
         """Get and validate the order payable amount."""
-
-        amount = order.get(
-            "totalAmount"
-        )
+        amount = order.get("totalAmount")
 
         if amount is None:
-            raise PaymentServiceError(
-                "Order amount is missing."
-            )
+            raise PaymentServiceError("Order amount is missing.")
 
         try:
-            amount = float(amount)
-        except (TypeError, ValueError) as exc:
-            raise PaymentServiceError(
-                "Invalid order amount."
-            ) from exc
+            amount_decimal = Decimal(str(amount))
+        except (TypeError, ValueError, ArithmeticError) as exc:
+            raise PaymentServiceError("Invalid order amount.") from exc
 
-        if amount <= 0:
-            raise PaymentServiceError(
-                "Invalid order amount."
-            )
+        if amount_decimal <= 0:
+            raise PaymentServiceError("Invalid order amount.")
 
-        return round(
-            amount,
-            2,
-        )
-
-    # ============================================================
-    # DUPLICATE PAYMENT CHECK
-    # ============================================================
+        return float(amount_decimal.quantize(Decimal("0.01")))
 
     @staticmethod
     def _check_existing_payment(
@@ -614,45 +364,26 @@ class PaymentService:
         razorpay_payment_id: str,
     ) -> None:
         """Prevent reuse of an already processed payment."""
+        razorpay_data = invoice.get("razorpay") or {}
 
-        razorpay_data = invoice.get(
-            "razorpay"
-        ) or {}
-
-        if not isinstance(
-            razorpay_data,
-            dict,
-        ):
+        if not isinstance(razorpay_data, dict):
             raise PaymentServiceError(
                 "Invalid Razorpay invoice data."
             )
 
-        existing_payment_id = (
-            razorpay_data.get("paymentId")
-        )
+        existing_payment_id = razorpay_data.get("paymentId")
 
         if not existing_payment_id:
             return
 
-        existing_payment_id = str(
-            existing_payment_id
-        ).strip()
+        existing_payment_id = str(existing_payment_id).strip()
 
-        if (
-            existing_payment_id
-            == razorpay_payment_id
-        ):
-            raise PaymentServiceError(
-                "Payment already verified."
-            )
+        if existing_payment_id == razorpay_payment_id:
+            raise PaymentServiceError("Payment already verified.")
 
         raise PaymentServiceError(
             "Invoice already has a different payment."
         )
-
-    # ============================================================
-    # VERIFY SIGNATURE
-    # ============================================================
 
     def _verify_signature(
         self,
@@ -662,19 +393,12 @@ class PaymentService:
         razorpay_signature: str,
     ) -> None:
         """Verify the Razorpay payment signature."""
-
         try:
             self.client.utility.verify_payment_signature(
                 {
-                    "razorpay_order_id": (
-                        razorpay_order_id
-                    ),
-                    "razorpay_payment_id": (
-                        razorpay_payment_id
-                    ),
-                    "razorpay_signature": (
-                        razorpay_signature
-                    ),
+                    "razorpay_order_id": razorpay_order_id,
+                    "razorpay_payment_id": razorpay_payment_id,
+                    "razorpay_signature": razorpay_signature,
                 }
             )
         except Exception as exc:
@@ -682,21 +406,14 @@ class PaymentService:
                 "Invalid payment signature."
             ) from exc
 
-    # ============================================================
-    # FETCH PAYMENT
-    # ============================================================
-
     def _fetch_payment(
         self,
         razorpay_payment_id: str,
     ) -> dict[str, Any]:
         """Fetch payment details from Razorpay."""
-
-        razorpay_payment_id = (
-            self._validate_string(
-                razorpay_payment_id,
-                "Razorpay payment ID",
-            )
+        razorpay_payment_id = self._validate_string(
+            razorpay_payment_id,
+            "Razorpay payment ID",
         )
 
         try:
@@ -713,19 +430,12 @@ class PaymentService:
                 "Payment details not found."
             )
 
-        if not isinstance(
-            payment,
-            dict,
-        ):
+        if not isinstance(payment, dict):
             raise PaymentServiceError(
                 "Invalid payment response."
             )
 
         return payment
-
-    # ============================================================
-    # VALIDATE PAYMENT
-    # ============================================================
 
     @classmethod
     def _validate_payment(
@@ -736,25 +446,11 @@ class PaymentService:
         expected_amount: float,
     ) -> None:
         """Validate Razorpay payment against the order."""
-
-        if not isinstance(
-            payment,
-            dict,
-        ):
-            raise PaymentServiceError(
-                "Invalid payment data."
-            )
-
-        # --------------------------------------------------------
-        # PAYMENT ORDER ID
-        # --------------------------------------------------------
-
-        payment_order_id = payment.get(
-            "order_id"
-        )
+        if not isinstance(payment, dict):
+            raise PaymentServiceError("Invalid payment data.")
 
         payment_order_id = cls._validate_string(
-            payment_order_id,
+            payment.get("order_id"),
             "Payment Razorpay order ID",
         )
 
@@ -763,38 +459,17 @@ class PaymentService:
                 "Payment does not belong to this order."
             )
 
-        # --------------------------------------------------------
-        # PAYMENT ID
-        # --------------------------------------------------------
-
-        payment_id = payment.get(
-            "id"
-        )
-
-        payment_id = cls._validate_string(
-            payment_id,
+        cls._validate_string(
+            payment.get("id"),
             "Payment ID",
         )
 
-        # --------------------------------------------------------
-        # AMOUNT
-        # --------------------------------------------------------
+        expected_amount_paise = cls._get_amount_in_paise(
+            expected_amount
+        )
 
         try:
-            expected_amount_paise = int(
-                round(
-                    float(expected_amount) * 100
-                )
-            )
-        except (TypeError, ValueError) as exc:
-            raise PaymentServiceError(
-                "Invalid expected payment amount."
-            ) from exc
-
-        try:
-            actual_amount = int(
-                payment.get("amount") or 0
-            )
+            actual_amount = int(payment.get("amount") or 0)
         except (TypeError, ValueError) as exc:
             raise PaymentServiceError(
                 "Invalid payment amount."
@@ -805,60 +480,25 @@ class PaymentService:
                 "Payment amount must be greater than zero."
             )
 
-        if (
-            actual_amount
-            != expected_amount_paise
-        ):
+        if actual_amount != expected_amount_paise:
             raise PaymentServiceError(
                 "Payment amount mismatch."
             )
 
-        # --------------------------------------------------------
-        # CURRENCY
-        # --------------------------------------------------------
-
-        currency = payment.get(
-            "currency"
-        )
-
-        if currency != "INR":
+        if payment.get("currency") != "INR":
             raise PaymentServiceError(
                 "Invalid payment currency."
             )
 
-        # --------------------------------------------------------
-        # STATUS
-        # --------------------------------------------------------
-
-        status = payment.get(
-            "status"
-        )
-
-        if status != "captured":
+        if payment.get("status") != "captured":
             raise PaymentServiceError(
                 "Payment is not captured."
             )
 
-        # --------------------------------------------------------
-        # METHOD
-        # --------------------------------------------------------
-
-        payment_method = payment.get(
-            "method"
-        )
-
-        if not payment_method:
+        if not payment.get("method"):
             raise PaymentServiceError(
                 "Payment method was not returned by Razorpay."
             )
-
-        # Keep variable explicitly used for
-        # validation/readability.
-        _ = payment_id
-
-    # ============================================================
-    # MARK ORDER PAID
-    # ============================================================
 
     @classmethod
     async def _mark_order_paid(
@@ -868,16 +508,12 @@ class PaymentService:
         updated_at: datetime,
     ) -> None:
         """Mark order as successfully paid and placed."""
-
         order_object_id = cls._to_object_id(
             order_id,
             "order ID",
         )
 
-        if not isinstance(
-            updated_at,
-            datetime,
-        ):
+        if not isinstance(updated_at, datetime):
             raise PaymentServiceError(
                 "Invalid payment update timestamp."
             )
@@ -885,9 +521,7 @@ class PaymentService:
         result = await orders_collection.update_one(
             {
                 "_id": order_object_id,
-                "paymentStatus": {
-                    "$ne": "paid"
-                },
+                "paymentStatus": {"$ne": "paid"},
             },
             {
                 "$set": {
@@ -901,14 +535,8 @@ class PaymentService:
         if result.modified_count > 0:
             return
 
-        # --------------------------------------------------------
-        # CHECK CURRENT STATE
-        # --------------------------------------------------------
-
         order = await orders_collection.find_one(
-            {
-                "_id": order_object_id
-            },
+            {"_id": order_object_id},
             {
                 "paymentStatus": 1,
                 "orderStatus": 1,
@@ -921,10 +549,8 @@ class PaymentService:
             )
 
         if (
-            order.get("paymentStatus")
-            == "paid"
-            and order.get("orderStatus")
-            == "placed"
+            order.get("paymentStatus") == "paid"
+            and order.get("orderStatus") == "placed"
         ):
             return
 
@@ -932,46 +558,22 @@ class PaymentService:
             "Failed to update order payment status."
         )
 
-
-    # ============================================================
-    # CLEAR CART AFTER SUCCESSFUL PAYMENT
-    # ============================================================
-
     @staticmethod
     async def _clear_cart(
         *,
         order: dict[str, Any],
     ) -> None:
-        """
-        Clear cart after successful payment.
-
-        Supports:
-        - customerId
-        - guestCartId
-
-        Handles customerId stored as either:
-        - MongoDB ObjectId
-        - string
-        """
-
+        """Clear carts after successful payment."""
         if not isinstance(order, dict):
             return
 
         now = datetime.now(timezone.utc)
-
         filters: list[dict[str, Any]] = []
-
-        # ========================================================
-        # CUSTOMER CART
-        # ========================================================
 
         customer_id = order.get("customerId")
 
         if customer_id:
-
-            customer_id_string = str(
-                customer_id
-            ).strip()
+            customer_id_string = str(customer_id).strip()
 
             if not customer_id_string:
                 raise PaymentServiceError(
@@ -982,8 +584,6 @@ class PaymentService:
                 customer_id_string,
             ]
 
-            # If it is a valid ObjectId, also search
-            # using MongoDB ObjectId.
             if ObjectId.is_valid(customer_id_string):
                 customer_values.append(
                     ObjectId(customer_id_string)
@@ -997,17 +597,10 @@ class PaymentService:
                 }
             )
 
-        # ========================================================
-        # GUEST CART
-        # ========================================================
-
         guest_cart_id = order.get("guestCartId")
 
         if guest_cart_id:
-
-            guest_cart_id_string = str(
-                guest_cart_id
-            ).strip()
+            guest_cart_id_string = str(guest_cart_id).strip()
 
             if guest_cart_id_string:
                 filters.append(
@@ -1016,22 +609,12 @@ class PaymentService:
                     }
                 )
 
-        # ========================================================
-        # NOTHING TO CLEAR
-        # ========================================================
-
         if not filters:
             return
 
-        # ========================================================
-        # CLEAR CARTS
-        # ========================================================
-
         try:
-
             for cart_filter in filters:
-
-                result = await carts_collection.update_one(
+                await carts_collection.update_many(
                     cart_filter,
                     {
                         "$set": {
@@ -1040,26 +623,10 @@ class PaymentService:
                         }
                     },
                 )
-
-                print(
-                    "CLEAR CART:",
-                    cart_filter,
-                    "matched:",
-                    result.matched_count,
-                    "modified:",
-                    result.modified_count,
-                )
-
         except Exception as exc:
-
             raise PaymentServiceError(
                 "Payment succeeded, but cart could not be cleared."
             ) from exc
-
-
-    # ============================================================
-    # JSON SAFE
-    # ============================================================
 
     @classmethod
     def _make_json_safe(
@@ -1067,40 +634,22 @@ class PaymentService:
         value: Any,
     ) -> Any:
         """Convert MongoDB/Python values to JSON-safe values."""
-
-        if isinstance(
-            value,
-            ObjectId,
-        ):
+        if isinstance(value, ObjectId):
             return str(value)
 
-        if isinstance(
-            value,
-            datetime,
-        ):
+        if isinstance(value, datetime):
             return value.isoformat()
 
-        if isinstance(
-            value,
-            Decimal,
-        ):
+        if isinstance(value, Decimal):
             return float(value)
 
-        if isinstance(
-            value,
-            dict,
-        ):
+        if isinstance(value, dict):
             return {
-                str(key): cls._make_json_safe(
-                    item
-                )
+                str(key): cls._make_json_safe(item)
                 for key, item in value.items()
             }
 
-        if isinstance(
-            value,
-            (list, tuple, set),
-        ):
+        if isinstance(value, (list, tuple, set)):
             return [
                 cls._make_json_safe(item)
                 for item in value

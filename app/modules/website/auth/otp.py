@@ -5,24 +5,13 @@ from app.modules.website.auth.schemas.otp_schema import (
     SendOTPRequest,
     VerifyOTPRequest,
 )
-
 from app.services.auth.otp_service import (
     resend_login_otp,
     send_login_otp,
     verify_login_otp,
 )
 
-
-# ============================================================
-# ROUTER
-# ============================================================
-
 router = APIRouter()
-
-
-# ============================================================
-# SEND OTP
-# ============================================================
 
 
 @router.post("/send")
@@ -30,25 +19,19 @@ async def send_otp(
     payload: SendOTPRequest,
 ):
     """
-    Send OTP to customer's mobile number.
-
-    Flow:
-
-        User enters mobile
-                ↓
-            POST /send
-                ↓
-            OTP generated
-                ↓
-            OTP sent by SMS
+    Send OTP to customer's email or mobile number.
     """
 
+    login_type="email" if payload.email else "mobile"
+
     result = await send_login_otp(
+        email=payload.email,
         mobile=payload.mobile,
+        login_type=login_type,
     )
 
-    if not result.get("success"):
 
+    if not result.get("success"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=result.get(
@@ -63,6 +46,10 @@ async def send_otp(
             "message",
             "OTP sent successfully.",
         ),
+        "loginType": result.get(
+            "loginType",
+            login_type,
+        ),
         "expiresIn": result.get(
             "expiresIn",
             300,
@@ -74,37 +61,31 @@ async def send_otp(
     }
 
 
-# ============================================================
-# RESEND OTP
-# ============================================================
-
-
 @router.post("/resend")
 async def resend_otp(
     payload: ResendOTPRequest,
 ):
     """
-    Resend OTP to customer's mobile number.
+    Resend OTP to customer's email or mobile number.
     """
 
+    login_type="email" if payload.email else "mobile"
+
     result = await resend_login_otp(
+        email=payload.email,
         mobile=payload.mobile,
+        login_type=login_type,
     )
 
     if not result.get("success"):
-
         message = result.get(
             "message",
             "Unable to resend OTP.",
         )
 
-        # Cooldown errors should be 429.
         if "wait" in message.lower():
-
             raise HTTPException(
-                status_code=(
-                    status.HTTP_429_TOO_MANY_REQUESTS
-                ),
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=message,
             )
 
@@ -119,6 +100,10 @@ async def resend_otp(
             "message",
             "OTP resent successfully.",
         ),
+        "loginType": result.get(
+            "loginType",
+            login_type,
+        ),
         "expiresIn": result.get(
             "expiresIn",
             300,
@@ -130,11 +115,6 @@ async def resend_otp(
     }
 
 
-# ============================================================
-# VERIFY OTP
-# ============================================================
-
-
 @router.post("/verify")
 async def verify_otp(
     payload: VerifyOTPRequest,
@@ -142,78 +122,49 @@ async def verify_otp(
     """
     Verify OTP and authenticate customer.
 
-    Successful response contains:
-
-        customer.id
-        customer.mobile
-        customer.name
-        customer.email
-
-        access_token
-        refresh_token
-        token_type
-        expiresIn
+    Supports:
+    - Email OTP
+    - Mobile OTP
     """
 
+    login_type="email" if payload.email else "mobile"
+
     result = await verify_login_otp(
+        email=payload.email,
         mobile=payload.mobile,
         otp=payload.otp,
+        login_type=login_type,
     )
 
-    # --------------------------------------------------------
-    # OTP / LOGIN FAILURE
-    # --------------------------------------------------------
-
     if not result.get("success"):
-
         message = result.get(
             "message",
             "Unable to verify OTP.",
         )
 
-        if (
-            "inactive"
-            in message.lower()
-        ):
-
+        if "inactive" in message.lower():
             raise HTTPException(
-                status_code=(
-                    status.HTTP_403_FORBIDDEN
-                ),
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail=message,
             )
 
         raise HTTPException(
-            status_code=(
-                status.HTTP_401_UNAUTHORIZED
-            ),
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail=message,
         )
 
-    # --------------------------------------------------------
-    # CUSTOMER
-    # --------------------------------------------------------
-
-    customer = result.get(
-        "customer"
-    )
+    customer = result.get("customer")
 
     if not customer:
-
         raise HTTPException(
-            status_code=(
-                status.HTTP_500_INTERNAL_SERVER_ERROR
-            ),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Customer information was not found.",
         )
-
-    # --------------------------------------------------------
-    # RESPONSE
-    # --------------------------------------------------------
 
     return {
         "success": True,
         "message": result.get("message", "Login successful."),
+        "loginType": result.get("loginType", login_type),
         "customer": {
             "id": customer.get("id"),
             "mobile": customer.get("mobile"),

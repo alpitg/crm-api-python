@@ -19,10 +19,16 @@ address_collection = db["customer_addresses"]
 customers_collection = db["customers"]
 
 
+# ==================================================
+# RESPONSE SCHEMAS
+# ==================================================
+
+
 class CustomerProfileResponse(BaseModel):
     id: str
     name: str
     email: str
+    mobile: Optional[str] = None
     description: Optional[str] = None
     isActive: bool = True
     createdAt: Optional[datetime] = None
@@ -30,8 +36,16 @@ class CustomerProfileResponse(BaseModel):
 
 
 class UpdateCustomerProfileRequest(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    description: Optional[str] = Field(default=None, max_length=500)
+    name: Optional[str] = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+    )
+
+    description: Optional[str] = Field(
+        default=None,
+        max_length=500,
+    )
 
 
 class CustomerProfileMutationResponse(BaseModel):
@@ -55,11 +69,16 @@ ADDRESS_TYPES = {
 # HELPERS
 # ==================================================
 
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def validate_object_id(value: str, field_name: str = "ID") -> ObjectId:
+def validate_object_id(
+    value: str,
+    field_name: str = "ID",
+) -> ObjectId:
+
     if not ObjectId.is_valid(value):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -75,44 +94,73 @@ def serialize_address(address: dict) -> dict:
         "customerId": str(address["customerId"]),
         "name": address.get("name"),
         "mobile": address.get("mobile"),
-        "addressType": address.get("addressType", "home"),
-        "addressLine1": address.get("addressLine1"),
-        "addressLine2": address.get("addressLine2"),
-        "landmark": address.get("landmark"),
+        "addressType": address.get(
+            "addressType",
+            "home",
+        ),
+        "addressLine1": address.get(
+            "addressLine1"
+        ),
+        "addressLine2": address.get(
+            "addressLine2"
+        ),
+        "landmark": address.get(
+            "landmark"
+        ),
         "city": address.get("city"),
         "state": address.get("state"),
         "pincode": address.get("pincode"),
-        "isDefault": bool(address.get("isDefault", False)),
-        "createdAt": address.get("createdAt"),
-        "updatedAt": address.get("updatedAt"),
+        "isDefault": bool(
+            address.get(
+                "isDefault",
+                False,
+            )
+        ),
+        "createdAt": address.get(
+            "createdAt"
+        ),
+        "updatedAt": address.get(
+            "updatedAt"
+        ),
     }
 
 
-# ============================================================
-# HELPERS
-# ============================================================
-
-
-def serialize_customer_profile(customer: dict) -> CustomerProfileResponse:
+def serialize_customer_profile(
+    customer: dict,
+) -> CustomerProfileResponse:
     """
-    Convert MongoDB customer document into the public profile response.
+    Convert MongoDB customer document
+    into the public profile response.
     """
 
     return CustomerProfileResponse(
-        id=str(customer.get("id") or customer.get("_id")),
+        id=str(
+            customer.get("id")
+            or customer.get("_id")
+        ),
         name=customer.get("name") or "",
         email=customer.get("email") or "",
         mobile=customer.get("mobile"),
-        description=customer.get("description"),
-        isActive=customer.get("isActive", True),
-        createdAt=customer.get("createdAt"),
-        updatedAt=customer.get("updatedAt"),
+        description=customer.get(
+            "description"
+        ),
+        isActive=customer.get(
+            "isActive",
+            True,
+        ),
+        createdAt=customer.get(
+            "createdAt"
+        ),
+        updatedAt=customer.get(
+            "updatedAt"
+        ),
     )
 
 
 # ==================================================
 # REQUEST SCHEMAS
 # ==================================================
+
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(
@@ -231,6 +279,7 @@ class AddressUpdateRequest(BaseModel):
 # REFRESH TOKEN
 # ==================================================
 
+
 @router.post("/refresh")
 async def refresh_token(
     payload: RefreshTokenRequest,
@@ -243,6 +292,7 @@ async def refresh_token(
         result = refresh_access_token(
             refresh_token=payload.refresh_token,
         )
+
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -274,6 +324,7 @@ async def refresh_token(
 # CURRENT USER
 # ==================================================
 
+
 @router.get("/me")
 async def get_current_user(
     customer=Depends(get_current_customer),
@@ -303,12 +354,14 @@ async def get_current_user(
 # GET ADDRESSES
 # ==================================================
 
+
 @router.get("/me/addresses")
 async def get_my_addresses(
     customer=Depends(get_current_customer)
 ):
     """
-    Get all addresses belonging to the authenticated customer.
+    Get all addresses belonging to
+    the authenticated customer.
     """
 
     if not customer:
@@ -334,7 +387,9 @@ async def get_my_addresses(
         )
     )
 
-    addresses = await cursor.to_list(length=None)
+    addresses = await cursor.to_list(
+        length=None
+    )
 
     return {
         "success": True,
@@ -349,13 +404,18 @@ async def get_my_addresses(
 # CREATE ADDRESS
 # ==================================================
 
-@router.post("/me/addresses", status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/me/addresses",
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_address(
     payload: AddressCreateRequest,
     customer=Depends(get_current_customer)
 ):
     """
-    Create a new address for the authenticated customer.
+    Create a new address for the
+    authenticated customer.
     """
 
     if not customer:
@@ -372,13 +432,16 @@ async def create_address(
 
     customer_id = customer["_id"]
 
-    existing_count = await address_collection.count_documents(
-        {
-            "customerId": customer_id,
-        }
+    existing_count = (
+        await address_collection.count_documents(
+            {
+                "customerId": customer_id,
+            }
+        )
     )
 
-    # First address should automatically become default.
+    # First address should automatically
+    # become default.
     should_be_default = (
         payload.isDefault
         or existing_count == 0
@@ -426,14 +489,18 @@ async def create_address(
             },
         )
 
-    result = await address_collection.insert_one(address)
+    result = await address_collection.insert_one(
+        address
+    )
 
     address["_id"] = result.inserted_id
 
     return {
         "success": True,
         "message": "Address added successfully.",
-        "address": serialize_address(address),
+        "address": serialize_address(
+            address
+        ),
     }
 
 
@@ -441,14 +508,18 @@ async def create_address(
 # UPDATE ADDRESS
 # ==================================================
 
-@router.patch("/me/addresses/{address_id}")
+
+@router.patch(
+    "/me/addresses/{address_id}"
+)
 async def update_address(
     address_id: str,
     payload: AddressUpdateRequest,
     customer=Depends(get_current_customer)
 ):
     """
-    Update an address belonging to the authenticated customer.
+    Update an address belonging to
+    the authenticated customer.
     """
 
     if not customer:
@@ -464,11 +535,13 @@ async def update_address(
 
     customer_id = customer["_id"]
 
-    existing_address = await address_collection.find_one(
-        {
-            "_id": object_id,
-            "customerId": customer_id,
-        }
+    existing_address = (
+        await address_collection.find_one(
+            {
+                "_id": object_id,
+                "customerId": customer_id,
+            }
+        )
     )
 
     if not existing_address:
@@ -485,12 +558,15 @@ async def update_address(
         return {
             "success": True,
             "message": "No changes provided.",
-            "address": serialize_address(existing_address),
+            "address": serialize_address(
+                existing_address
+            ),
         }
 
     if (
         "addressType" in update_data
-        and update_data["addressType"] not in ADDRESS_TYPES
+        and update_data["addressType"]
+        not in ADDRESS_TYPES
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -535,17 +611,21 @@ async def update_address(
         },
     )
 
-    updated_address = await address_collection.find_one(
-        {
-            "_id": object_id,
-            "customerId": customer_id,
-        }
+    updated_address = (
+        await address_collection.find_one(
+            {
+                "_id": object_id,
+                "customerId": customer_id,
+            }
+        )
     )
 
     return {
         "success": True,
         "message": "Address updated successfully.",
-        "address": serialize_address(updated_address),
+        "address": serialize_address(
+            updated_address
+        ),
     }
 
 
@@ -553,13 +633,17 @@ async def update_address(
 # DELETE ADDRESS
 # ==================================================
 
-@router.delete("/me/addresses/{address_id}")
+
+@router.delete(
+    "/me/addresses/{address_id}"
+)
 async def delete_address(
     address_id: str,
     customer=Depends(get_current_customer)
 ):
     """
-    Delete an address belonging to the authenticated customer.
+    Delete an address belonging to
+    the authenticated customer.
     """
 
     if not customer:
@@ -589,7 +673,10 @@ async def delete_address(
         )
 
     was_default = bool(
-        address.get("isDefault", False)
+        address.get(
+            "isDefault",
+            False,
+        )
     )
 
     await address_collection.delete_one(
@@ -602,13 +689,15 @@ async def delete_address(
     # If default address was deleted,
     # automatically promote another address.
     if was_default:
-        next_address = await address_collection.find_one(
-            {
-                "customerId": customer_id,
-            },
-            sort=[
-                ("updatedAt", -1),
-            ],
+        next_address = (
+            await address_collection.find_one(
+                {
+                    "customerId": customer_id,
+                },
+                sort=[
+                    ("updatedAt", -1),
+                ],
+            )
         )
 
         if next_address:
@@ -635,13 +724,17 @@ async def delete_address(
 # SET DEFAULT ADDRESS
 # ==================================================
 
-@router.post("/me/addresses/{address_id}/default")
+
+@router.post(
+    "/me/addresses/{address_id}/default"
+)
 async def set_default_address(
     address_id: str,
     customer=Depends(get_current_customer)
 ):
     """
-    Set an address as the customer's default address.
+    Set an address as the customer's
+    default address.
     """
 
     if not customer:
@@ -702,21 +795,22 @@ async def set_default_address(
         },
     )
 
-    updated_address = await address_collection.find_one(
-        {
-            "_id": object_id,
-            "customerId": customer_id,
-        }
+    updated_address = (
+        await address_collection.find_one(
+            {
+                "_id": object_id,
+                "customerId": customer_id,
+            }
+        )
     )
 
     return {
         "success": True,
         "message": "Default address updated successfully.",
-        "address": serialize_address(updated_address),
+        "address": serialize_address(
+            updated_address
+        ),
     }
-
-
-
 
 
 # ============================================================
@@ -730,13 +824,18 @@ async def set_default_address(
     status_code=status.HTTP_200_OK,
 )
 async def get_customer_profile(
-    current_customer: dict = Depends(get_current_customer),
+    current_customer: dict = Depends(
+        get_current_customer
+    ),
 ):
     """
-    Get the currently authenticated customer's profile.
+    Get the currently authenticated
+    customer's profile.
     """
 
-    customer_id = current_customer.get("_id")
+    customer_id = current_customer.get(
+        "_id"
+    )
 
     if not customer_id:
         raise HTTPException(
@@ -745,7 +844,9 @@ async def get_customer_profile(
         )
 
     customer = await customers_collection.find_one(
-        {"_id": customer_id}
+        {
+            "_id": customer_id
+        }
     )
 
     if not customer:
@@ -754,7 +855,9 @@ async def get_customer_profile(
             detail="Customer profile not found.",
         )
 
-    return serialize_customer_profile(customer)
+    return serialize_customer_profile(
+        customer
+    )
 
 
 # ============================================================
@@ -769,13 +872,18 @@ async def get_customer_profile(
 )
 async def update_customer_profile(
     payload: UpdateCustomerProfileRequest,
-    current_customer: dict = Depends(get_current_customer),
+    current_customer: dict = Depends(
+        get_current_customer
+    ),
 ):
     """
-    Update the currently authenticated customer's profile.
+    Update the currently authenticated
+    customer's profile.
     """
 
-    customer_id = current_customer.get("_id")
+    customer_id = current_customer.get(
+        "_id"
+    )
 
     if not customer_id:
         raise HTTPException(
@@ -784,7 +892,9 @@ async def update_customer_profile(
         )
 
     customer = await customers_collection.find_one(
-        {"_id": customer_id}
+        {
+            "_id": customer_id
+        }
     )
 
     if not customer:
@@ -800,10 +910,14 @@ async def update_customer_profile(
     update_data = {}
 
     if payload.name is not None:
-        update_data["name"] = payload.name.strip()
+        update_data["name"] = (
+            payload.name.strip()
+        )
 
     if payload.description is not None:
-        update_data["description"] = payload.description.strip()
+        update_data["description"] = (
+            payload.description.strip()
+        )
 
     # ========================================================
     # NOTHING TO UPDATE
@@ -812,22 +926,30 @@ async def update_customer_profile(
     if not update_data:
         return CustomerProfileMutationResponse(
             success=True,
-            message="No profile changes were provided.",
-            customer=serialize_customer_profile(customer),
+            message=(
+                "No profile changes were provided."
+            ),
+            customer=serialize_customer_profile(
+                customer
+            ),
         )
 
     # ========================================================
     # UPDATED AT
     # ========================================================
 
-    update_data["updatedAt"] = datetime.now(timezone.utc)
+    update_data["updatedAt"] = datetime.now(
+        timezone.utc
+    )
 
     # ========================================================
     # UPDATE CUSTOMER
     # ========================================================
 
     await customers_collection.update_one(
-        {"_id": customer_id},
+        {
+            "_id": customer_id
+        },
         {
             "$set": update_data,
         },
@@ -837,27 +959,36 @@ async def update_customer_profile(
     # GET UPDATED CUSTOMER
     # ========================================================
 
-    updated_customer = await customers_collection.find_one(
-        {"_id": customer_id}
+    updated_customer = (
+        await customers_collection.find_one(
+            {
+                "_id": customer_id
+            }
+        )
     )
 
     if not updated_customer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Customer profile not found after update.",
+            detail=(
+                "Customer profile not found "
+                "after update."
+            ),
         )
 
     return CustomerProfileMutationResponse(
         success=True,
         message="Profile updated successfully.",
-        customer=serialize_customer_profile(updated_customer),
+        customer=serialize_customer_profile(
+            updated_customer
+        ),
     )
-
 
 
 # ==================================================
 # LOGOUT
 # ==================================================
+
 
 @router.post("/logout")
 async def logout(
@@ -874,7 +1005,9 @@ async def logout(
         )
 
     await logout_customer(
-        customer_id=str(customer["_id"]),
+        customer_id=str(
+            customer["_id"]
+        ),
     )
 
     return {

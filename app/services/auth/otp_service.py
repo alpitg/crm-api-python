@@ -1,43 +1,18 @@
 import random
-
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from app.db.mongo import db
-from app.services.auth.token_service import (
-    create_auth_tokens,
-)
-
-
-# ============================================================
-# CONFIG
-# ============================================================
+from app.services import mail_service
+from app.services.auth.token_service import create_auth_tokens
 
 OTP_LENGTH = 6
-
 OTP_EXPIRY_MINUTES = 5
-
 OTP_RESEND_COOLDOWN_SECONDS = 30
-
 MAX_VERIFY_ATTEMPTS = 5
 
-
-# ============================================================
-# COLLECTIONS
-# ============================================================
-
-website_otps_collection = db[
-    "website_otps"
-]
-
-customers_collection = db[
-    "customers"
-]
-
-
-# ============================================================
-# HELPERS
-# ============================================================
+website_otps_collection = db["website_otps"]
+customers_collection = db["customers"]
 
 
 def _now() -> datetime:
@@ -45,31 +20,25 @@ def _now() -> datetime:
 
 
 def _generate_otp() -> str:
-    """
-    Generate a 6-digit OTP.
-    """
-
     return f"{random.randint(0, 999999):06d}"
 
 
-def _normalize_mobile(
-    mobile: str,
-) -> str:
-    """
-    Normalize and validate mobile number.
-    """
+def _normalize_login_type(login_type: Optional[str]) -> str:
+    login_type = (login_type or "email").strip().lower()
 
+    if login_type not in {"email", "mobile"}:
+        raise ValueError("Invalid login type.")
+
+    return login_type
+
+
+def _normalize_mobile(mobile: str) -> str:
     if not mobile:
-        raise ValueError(
-            "Mobile number is required."
-        )
+        raise ValueError("Mobile number is required.")
 
     mobile = mobile.strip()
-
     mobile = "".join(
-        character
-        for character in mobile
-        if character.isdigit()
+        character for character in mobile if character.isdigit()
     )
 
     if len(mobile) != 10:
@@ -80,73 +49,83 @@ def _normalize_mobile(
     return mobile
 
 
-def _normalize_datetime(
-    value: datetime,
-) -> datetime:
-    """
-    Ensure MongoDB datetime is timezone-aware.
-    """
+def _normalize_email(email: str) -> str:
+    if not email:
+        raise ValueError("Email address is required.")
 
+    email = email.strip().lower()
+
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise ValueError("Please enter a valid email address.")
+
+    return email
+
+
+def _normalize_datetime(value: datetime) -> datetime:
     if value.tzinfo is None:
-        return value.replace(
-            tzinfo=timezone.utc
-        )
+        return value.replace(tzinfo=timezone.utc)
 
     return value
 
 
-# ============================================================
-# GENERATE + STORE OTP
-# ============================================================
+def _normalize_identifier(
+    identifier: str,
+    login_type: str = "email",
+) -> str:
+    login_type = _normalize_login_type(login_type)
+
+    if login_type == "mobile":
+        return _normalize_mobile(identifier)
+
+    return _normalize_email(identifier)
+
+
+def _otp_query(
+    identifier: str,
+    login_type: str = "email",
+) -> dict:
+    login_type = _normalize_login_type(login_type)
+    identifier = _normalize_identifier(
+        identifier,
+        login_type,
+    )
+
+    return {
+        "identifier": identifier,
+        "login_type": login_type,
+    }
 
 
 async def generate_and_store_otp(
-    mobile: str,
+    identifier: str,
+    login_type: str = "email",
 ) -> dict:
-    """
-    Generate and store a new OTP.
-
-    Existing OTP for the same mobile number
-    is replaced after cooldown.
-    """
-
-    mobile = _normalize_mobile(
-        mobile
+    login_type = _normalize_login_type(login_type)
+    identifier = _normalize_identifier(
+        identifier,
+        login_type,
     )
 
     now = _now()
 
-    existing_otp = await website_otps_collection.find_one(
-        {
-            "mobile": mobile,
-        }
+    query = _otp_query(
+        identifier=identifier,
+        login_type=login_type,
     )
 
-    # --------------------------------------------------------
-    # RESEND COOLDOWN
-    # --------------------------------------------------------
+    existing_otp = await website_otps_collection.find_one(query)
 
     if existing_otp:
-
-        last_sent_at = existing_otp.get(
-            "created_at"
-        )
+        last_sent_at = existing_otp.get("created_at")
 
         if last_sent_at:
-
-            last_sent_at = _normalize_datetime(
-                last_sent_at
-            )
+            last_sent_at = _normalize_datetime(last_sent_at)
 
             elapsed = (
                 now - last_sent_at
             ).total_seconds()
 
-            if (
-                elapsed
-                < OTP_RESEND_COOLDOWN_SECONDS
-            ):
-
+            if elapsed < OTP_RESEND_COOLDOWN_SECONDS:
                 remaining = max(
                     1,
                     int(
@@ -160,33 +139,21 @@ async def generate_and_store_otp(
                     "before requesting another OTP."
                 )
 
-    # --------------------------------------------------------
-    # GENERATE OTP
-    # --------------------------------------------------------
-
     otp = _generate_otp()
 
-    expiresAt = (
-        now
-        + timedelta(
-            minutes=OTP_EXPIRY_MINUTES
-        )
+    expires_at = now + timedelta(
+        minutes=OTP_EXPIRY_MINUTES
     )
 
-    # --------------------------------------------------------
-    # STORE
-    # --------------------------------------------------------
-
     await website_otps_collection.update_one(
-        {
-            "mobile": mobile,
-        },
+        query,
         {
             "$set": {
-                "mobile": mobile,
+                "identifier": identifier,
+                "login_type": login_type,
                 "otp": otp,
                 "created_at": now,
-                "expiresAt": expiresAt,
+                "expiresAt": expires_at,
                 "attempts": 0,
                 "verified": False,
                 "verified_at": None,
@@ -196,140 +163,151 @@ async def generate_and_store_otp(
     )
 
     return {
-        "mobile": mobile,
+        "identifier": identifier,
+        "login_type": login_type,
         "otp": otp,
-        "expiresAt": expiresAt,
+        "expiresAt": expires_at,
         "expiresIn": OTP_EXPIRY_MINUTES * 60,
         "retryAfter": OTP_RESEND_COOLDOWN_SECONDS,
     }
 
 
-# ============================================================
-# SEND LOGIN OTP
-# ============================================================
-
-
 async def send_login_otp(
-    mobile: str,
+    login_type: str = "email",
+    email: Optional[str] = None,
+    mobile: Optional[str] = None,
 ) -> dict:
-    """
-    Generate and send login OTP.
-    """
+    login_type = _normalize_login_type(login_type)
+
+    identifier = ""
+
+    if login_type == "email":
+        identifier = email or identifier
+    else:
+        identifier = mobile or identifier
 
     try:
-
         result = await generate_and_store_otp(
-            mobile=mobile
+            identifier=identifier,
+            login_type=login_type,
         )
-
     except ValueError as exc:
-
         return {
             "success": False,
             "message": str(exc),
         }
 
-    # ========================================================
-    # SMS PROVIDER
-    # ========================================================
-    #
-    # IMPORTANT:
-    #
-    # Add your SMS provider here.
-    #
-    # Example:
-    #
-    # await sms_service.send_otp(
-    #     mobile=result["mobile"],
-    #     otp=result["otp"],
-    # )
-    #
-    # ========================================================
+    if login_type == "email":
+        try:
+            await mail_service.send_otp(
+                email=result["identifier"],
+                otp=result["otp"],
+            )
+        except Exception as exc:
+            await clear_otp(
+                identifier=result["identifier"],
+                login_type=login_type,
+            )
 
-    # DEVELOPMENT ONLY
-    #
-    # print(
-    #     f"LOGIN OTP for {result['mobile']}: "
-    #     f"{result['otp']}"
-    # )
+            return {
+                "success": False,
+                "message": "Unable to send OTP email.",
+                "error": str(exc),
+            }
+
+    else:
+        # Add SMS provider here.
+        #
+        # await sms_service.send_otp(
+        #     mobile=result["identifier"],
+        #     otp=result["otp"],
+        # )
+        pass
 
     return {
         "success": True,
         "message": "OTP sent successfully.",
-        "mobile": result["mobile"],
+        "identifier": result["identifier"],
+        "loginType": result["login_type"],
         "expiresIn": result["expiresIn"],
         "retryAfter": result["retryAfter"],
     }
 
 
-# ============================================================
-# RESEND LOGIN OTP
-# ============================================================
-
-
 async def resend_login_otp(
-    mobile: str,
+    login_type: str = "email",
+    email: Optional[str] = None,
+    mobile: Optional[str] = None,
 ) -> dict:
-    """
-    Resend login OTP.
-    """
+    login_type = _normalize_login_type(login_type)
+
+    identifier = ""
+
+    if login_type == "email":
+        identifier = email or identifier
+    else:
+        identifier = mobile or identifier
 
     try:
-
         result = await generate_and_store_otp(
-            mobile=mobile
+            identifier=identifier,
+            login_type=login_type,
         )
-
     except ValueError as exc:
-
         return {
             "success": False,
             "message": str(exc),
         }
 
-    # ========================================================
-    # SMS PROVIDER
-    # ========================================================
+    if login_type == "email":
+        try:
+            await mail_service.send_otp(
+                email=result["identifier"],
+                otp=result["otp"],
+            )
+        except Exception as exc:
+            await clear_otp(
+                identifier=result["identifier"],
+                login_type=login_type,
+            )
 
-    # await sms_service.send_otp(
-    #     mobile=result["mobile"],
-    #     otp=result["otp"],
-    # )
+            return {
+                "success": False,
+                "message": "Unable to send OTP email.",
+                "error": str(exc),
+            }
+
+    else:
+        # Add SMS provider here.
+        #
+        # await sms_service.send_otp(
+        #     mobile=result["identifier"],
+        #     otp=result["otp"],
+        # )
+        pass
 
     return {
         "success": True,
         "message": "OTP resent successfully.",
-        "mobile": result["mobile"],
+        "identifier": result["identifier"],
+        "loginType": result["login_type"],
         "expiresIn": result["expiresIn"],
         "retryAfter": result["retryAfter"],
     }
 
 
-# ============================================================
-# VERIFY OTP
-# ============================================================
-
-
 async def verify_otp(
-    mobile: str,
+    identifier: str,
     otp: str,
+    login_type: str = "email",
 ) -> bool:
-    """
-    Verify OTP.
-
-    Returns:
-        True  -> valid
-        False -> invalid / expired / blocked
-    """
-
     try:
-
-        mobile = _normalize_mobile(
-            mobile
+        login_type = _normalize_login_type(login_type)
+        identifier = _normalize_identifier(
+            identifier,
+            login_type,
         )
-
     except ValueError:
-
         return False
 
     if not otp:
@@ -343,113 +321,62 @@ async def verify_otp(
     if not otp.isdigit():
         return False
 
-    # --------------------------------------------------------
-    # FIND OTP
-    # --------------------------------------------------------
-
-    otp_record = await website_otps_collection.find_one(
-        {
-            "mobile": mobile,
-        }
+    query = _otp_query(
+        identifier=identifier,
+        login_type=login_type,
     )
+
+    otp_record = await website_otps_collection.find_one(query)
 
     if not otp_record:
         return False
 
-    # --------------------------------------------------------
-    # ALREADY VERIFIED
-    # --------------------------------------------------------
-
     if otp_record.get("verified"):
         return False
 
-    # --------------------------------------------------------
-    # EXPIRY
-    # --------------------------------------------------------
-
     now = _now()
 
-    expiresAt = otp_record.get(
-        "expiresAt"
-    )
+    expires_at = otp_record.get("expiresAt")
 
-    if not expiresAt:
-
+    if not expires_at:
         await website_otps_collection.delete_one(
-            {
-                "_id": otp_record["_id"],
-            }
+            {"_id": otp_record["_id"]}
         )
-
         return False
 
-    expiresAt = _normalize_datetime(
-        expiresAt
-    )
+    expires_at = _normalize_datetime(expires_at)
 
-    if now >= expiresAt:
-
+    if now >= expires_at:
         await website_otps_collection.delete_one(
-            {
-                "_id": otp_record["_id"],
-            }
+            {"_id": otp_record["_id"]}
         )
-
         return False
 
-    # --------------------------------------------------------
-    # MAX ATTEMPTS
-    # --------------------------------------------------------
-
-    attempts = otp_record.get(
-        "attempts",
-        0,
-    )
+    attempts = otp_record.get("attempts", 0)
 
     if attempts >= MAX_VERIFY_ATTEMPTS:
-
         await website_otps_collection.delete_one(
-            {
-                "_id": otp_record["_id"],
-            }
+            {"_id": otp_record["_id"]}
         )
-
         return False
 
-    # --------------------------------------------------------
-    # COMPARE
-    # --------------------------------------------------------
-
     stored_otp = str(
-        otp_record.get(
-            "otp",
-            ""
-        )
+        otp_record.get("otp", "")
     )
 
     if stored_otp != otp:
-
         await website_otps_collection.update_one(
-            {
-                "_id": otp_record["_id"],
-            },
+            {"_id": otp_record["_id"]},
             {
                 "$inc": {
                     "attempts": 1,
                 }
             },
         )
-
         return False
 
-    # --------------------------------------------------------
-    # VERIFIED
-    # --------------------------------------------------------
-
     await website_otps_collection.update_one(
-        {
-            "_id": otp_record["_id"],
-        },
+        {"_id": otp_record["_id"]},
         {
             "$set": {
                 "verified": True,
@@ -461,94 +388,80 @@ async def verify_otp(
     return True
 
 
-# ============================================================
-# VERIFY LOGIN OTP
-# ============================================================
-
-
 async def verify_login_otp(
-    mobile: str,
     otp: str,
+    login_type: str = "email",
+    email: Optional[str] = None,
+    mobile: Optional[str] = None,
 ) -> dict:
-    """
-    Complete website login flow.
+    login_type = _normalize_login_type(login_type)
 
-    Steps:
+    identifier = ""
 
-    1. Verify OTP
-    2. Find customer by mobile
-    3. Create customer if not found
-    4. Generate access token
-    5. Generate refresh token
-    6. Consume OTP
-    7. Return customer + tokens
-    """
-
-    # --------------------------------------------------------
-    # NORMALIZE MOBILE
-    # --------------------------------------------------------
+    if login_type == "email":
+        identifier = email or identifier
+    else:
+        identifier = mobile or identifier
 
     try:
-
-        mobile = _normalize_mobile(
-            mobile
+        identifier = _normalize_identifier(
+            identifier,
+            login_type,
         )
-
     except ValueError as exc:
-
         return {
             "success": False,
             "message": str(exc),
         }
 
-    # --------------------------------------------------------
-    # VERIFY OTP
-    # --------------------------------------------------------
-
     verified = await verify_otp(
-        mobile=mobile,
+        identifier=identifier,
         otp=otp,
+        login_type=login_type,
     )
 
     if not verified:
-
         return {
             "success": False,
             "message": "Invalid or expired OTP.",
         }
 
-    # --------------------------------------------------------
-    # FIND CUSTOMER
-    # --------------------------------------------------------
-
-    customer = await customers_collection.find_one(
-        {
-            "mobile": mobile,
-        }
-    )
-
-    # --------------------------------------------------------
-    # CREATE CUSTOMER IF NOT FOUND
-    # --------------------------------------------------------
+    if login_type == "email":
+        customer = await customers_collection.find_one(
+            {
+                "email": identifier,
+            }
+        )
+    else:
+        customer = await customers_collection.find_one(
+            {
+                "mobile": identifier,
+            }
+        )
 
     if not customer:
-
         now = _now()
 
         customer_document = {
-            "mobile": mobile,
+            "mobile": (
+                identifier
+                if login_type == "mobile"
+                else None
+            ),
             "name": "user",
-            "email": None,
+            "email": (
+                identifier
+                if login_type == "email"
+                else None
+            ),
             "description": None,
             "createdAt": now,
             "updatedAt": now,
             "isActive": True,
         }
 
-        insert_result = (
-            await customers_collection.insert_one(
-                customer_document
-            )
+        insert_result = await customers_collection.insert_one(
+            customer_document
         )
 
         customer_document["_id"] = (
@@ -557,171 +470,107 @@ async def verify_login_otp(
 
         customer = customer_document
 
-    # --------------------------------------------------------
-    # CUSTOMER ACTIVE CHECK
-    # --------------------------------------------------------
-
-    if customer.get(
-        "isActive",
-        True,
-    ) is False:
-
+    if customer.get("isActive", True) is False:
         return {
             "success": False,
             "message": "Customer account is inactive.",
         }
 
-    # --------------------------------------------------------
-    # CUSTOMER ID
-    # --------------------------------------------------------
-
-    customer_id = str(
-        customer["_id"]
-    )
-
-    # --------------------------------------------------------
-    # CREATE JWT TOKENS
-    # --------------------------------------------------------
+    customer_id = str(customer["_id"])
 
     tokens = create_auth_tokens(
         customer_id=customer_id,
-        mobile=mobile,
+        mobile=customer.get("mobile"),
     )
-
-    # --------------------------------------------------------
-    # CONSUME OTP
-    # --------------------------------------------------------
 
     await consume_verified_otp(
-        mobile=mobile
+        identifier=identifier,
+        login_type=login_type,
     )
-
-    # --------------------------------------------------------
-    # RESPONSE
-    # --------------------------------------------------------
 
     return {
         "success": True,
         "message": "Login successful.",
-        "mobile": mobile,
+        "identifier": identifier,
+        "loginType": login_type,
+        "mobile": customer.get("mobile"),
+        "email": customer.get("email"),
         "customer": {
             "id": customer_id,
-            "mobile": customer.get(
-                "mobile"
-            ),
-            "name": customer.get(
-                "name"
-            ),
-            "email": customer.get(
-                "email"
-            ),
+            "mobile": customer.get("mobile"),
+            "name": customer.get("name"),
+            "email": customer.get("email"),
         },
-        "access_token": tokens[
-            "access_token"
-        ],
-        "refresh_token": tokens[
-            "refresh_token"
-        ],
-        "token_type": tokens[
-            "token_type"
-        ],
-        "expiresIn": tokens[
-            "expiresIn"
-        ],
+        "access_token": tokens["access_token"],
+        "refresh_token": tokens["refresh_token"],
+        "token_type": tokens["token_type"],
+        "expiresIn": tokens["expiresIn"],
     }
 
 
-# ============================================================
-# CONSUME VERIFIED OTP
-# ============================================================
-
-
 async def consume_verified_otp(
-    mobile: str,
+    identifier: str,
+    login_type: str = "email",
 ) -> bool:
-    """
-    Delete verified OTP.
-
-    Prevents OTP reuse.
-    """
-
     try:
-
-        mobile = _normalize_mobile(
-            mobile
+        login_type = _normalize_login_type(login_type)
+        identifier = _normalize_identifier(
+            identifier,
+            login_type,
         )
-
     except ValueError:
-
         return False
 
     result = await website_otps_collection.delete_one(
         {
-            "mobile": mobile,
+            "identifier": identifier,
+            "login_type": login_type,
             "verified": True,
         }
     )
 
-    return (
-        result.deleted_count > 0
-    )
-
-
-# ============================================================
-# CLEAR OTP
-# ============================================================
+    return result.deleted_count > 0
 
 
 async def clear_otp(
-    mobile: str,
+    identifier: str,
+    login_type: str = "email",
 ) -> None:
-    """
-    Delete OTP for mobile.
-    """
-
     try:
-
-        mobile = _normalize_mobile(
-            mobile
+        login_type = _normalize_login_type(login_type)
+        identifier = _normalize_identifier(
+            identifier,
+            login_type,
         )
-
     except ValueError:
-
         return
 
     await website_otps_collection.delete_one(
-        {
-            "mobile": mobile,
-        }
+        _otp_query(
+            identifier=identifier,
+            login_type=login_type,
+        )
     )
 
 
-# ============================================================
-# OTP STATUS
-# ============================================================
-
-
 async def get_otp_status(
-    mobile: str,
+    identifier: str,
+    login_type: str = "email",
 ) -> Optional[dict]:
-    """
-    Get OTP status without exposing OTP.
-    """
-
     try:
-
-        mobile = _normalize_mobile(
-            mobile
+        login_type = _normalize_login_type(login_type)
+        identifier = _normalize_identifier(
+            identifier,
+            login_type,
         )
-
     except ValueError:
-
         return None
 
     record = await website_otps_collection.find_one(
-        {
-            "mobile": mobile,
-        },
+        _otp_query(
+            identifier=identifier,
+            login_type=login_type,
+        ),
         {
             "otp": 0,
         },
@@ -731,15 +580,13 @@ async def get_otp_status(
         return None
 
     return {
-        "mobile": record.get(
-            "mobile"
+        "identifier": record.get("identifier"),
+        "loginType": record.get(
+            "login_type",
+            "email",
         ),
-        "created_at": record.get(
-            "created_at"
-        ),
-        "expiresAt": record.get(
-            "expiresAt"
-        ),
+        "created_at": record.get("created_at"),
+        "expiresAt": record.get("expiresAt"),
         "attempts": record.get(
             "attempts",
             0,
@@ -754,18 +601,7 @@ async def get_otp_status(
     }
 
 
-# ============================================================
-# CLEANUP EXPIRED OTPs
-# ============================================================
-
-
 async def delete_expired_otps() -> int:
-    """
-    Delete expired OTP records.
-
-    Can be called from a scheduled background job.
-    """
-
     now = _now()
 
     result = await website_otps_collection.delete_many(
