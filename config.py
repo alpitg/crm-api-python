@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
 
+    INQUIRY_EMAIL: str = ""
+
     class Config:
         env_file = ".env"
 
