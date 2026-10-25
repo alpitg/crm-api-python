@@ -2,6 +2,7 @@
 from fastapi import APIRouter, HTTPException, status
 from textwrap import dedent
 import logging
+import asyncio
 
 from app.modules.website.quote.schemas.quote import (
     WebsiteQuoteIn,
@@ -91,8 +92,9 @@ async def create_website_quote(
                 This is an automated notification from your website.
             """).strip()
 
-            mail_service.send_email(
-                subject="Artisan studios - New Home Interior Quote Request",
+            await asyncio.to_thread(
+                mail_service.send_email,
+                subject="Artisan Studios - New Home Interior Quote Request",
                 recipients=[settings.INQUIRY_EMAIL],
                 body=body,
             )
