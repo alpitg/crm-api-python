@@ -1,5 +1,6 @@
 
 from fastapi import APIRouter, HTTPException, status
+from textwrap import dedent
 import logging
 
 from app.modules.website.quote.schemas.quote import (
@@ -63,29 +64,37 @@ async def create_website_quote(
         )
 
         try: 
-           await mail_service.send_email(
-            email=settings.INQUIRY_EMAIL,
-            subject="Artisan Studios - New Home Interior Quote Request",
-            recipients=[settings.INQUIRY_EMAIL],
-            body=f"""
-                New Home Interior Quote Request
+
+            body = dedent(f"""
+                NEW HOME INTERIOR QUOTE REQUEST
+                ========================================
 
                 A customer has submitted a quote request through the website.
 
-                Customer Details
-                ----------------
-                Name: {result["name"]}
-                Mobile: {result["phone"]}
-                Home Type: {result["homeType"]}
+                CUSTOMER DETAILS
+                ----------------------------------------
+                Name          : {payload.name}
+                Mobile        : {payload.phone}
+                Home Type     : {payload.homeType}
 
-                Quote Details
-                -------------
-                Quote ID: {result["quoteId"]}
-                Submitted At: {result["createdAt"]}
+                QUOTE DETAILS
+                ----------------------------------------
+                Quote ID      : {result["quoteId"]}
+                Submitted At  : {result["createdAt"]}
 
+                NEXT ACTION
+                ----------------------------------------
                 Please contact the customer to discuss their home interior
                 requirements and provide a personalised quotation.
-                """,
+
+                ----------------------------------------
+                This is an automated notification from your website.
+            """).strip()
+
+            mail_service.send_email(
+                subject="New Home Interior Quote Request",
+                recipients=[settings.INQUIRY_EMAIL],
+                body=body,
             )
         except Exception as exc:
             logger.error(
