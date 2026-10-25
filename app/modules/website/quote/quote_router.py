@@ -92,7 +92,7 @@ async def create_website_quote(
             """).strip()
 
             mail_service.send_email(
-                subject="New Home Interior Quote Request",
+                subject="Artisan studios - New Home Interior Quote Request",
                 recipients=[settings.INQUIRY_EMAIL],
                 body=body,
             )
