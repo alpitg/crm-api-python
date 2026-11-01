@@ -133,7 +133,7 @@ async def search_leads(filters: GetLeadsParams = Body(...)):
     )
 
 
-@router.get("/{id}", response_model=LeadOut)
+@router.get("/details/{id}", response_model=LeadOut)
 async def get_lead(id: str):
     lead = await collection.find_one({"_id": to_object_id(id)})
     if not lead:
@@ -205,7 +205,7 @@ async def create_lead(payload: LeadIn):
     return to_lead_out(lead)
 
 
-@router.put("/{id}", response_model=LeadOut)
+@router.put("/details/{id}", response_model=LeadOut)
 async def update_lead(id: str, payload: LeadIn):
     updated_lead = await collection.find_one_and_update(
         {"_id": to_object_id(id)},
@@ -222,7 +222,7 @@ async def update_lead(id: str, payload: LeadIn):
     return to_lead_out(updated_lead)
 
 
-@router.delete("/{id}")
+@router.delete("/details/{id}")
 async def delete_lead(id: str):
     result = await collection.delete_one({"_id": to_object_id(id)})
     if result.deleted_count == 0:

@@ -59,7 +59,7 @@ def setup_router(app: FastAPI) -> None:
     #region Leads
     app.include_router(leads_route.router, prefix="/leads", tags=["Leads"])
     app.include_router(leads_route.public_router, prefix="/leads/public", tags=["Leads"])
-    app.include_router(leads_dashboard_route.router, prefix="/leads/dashboard", tags=["Leads"])
+    app.include_router(leads_dashboard_route.router, prefix="/leads", tags=["Leads"])
     #endregion
 
     #region Catalog
