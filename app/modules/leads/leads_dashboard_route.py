@@ -87,7 +87,7 @@ def as_utc(value: datetime) -> datetime:
 
 
 # ---------- Routes ----------
-@router.get("/dashboard", response_model=LeadsDashboardOut)
+@router.get("", response_model=LeadsDashboardOut)
 async def get_leads_dashboard(
     recentLimit: int = Query(8, ge=1, le=20),
     followUpLimit: int = Query(5, ge=1, le=20),
