@@ -8,6 +8,7 @@ from app.modules.administration.user import user_routes
 from app.modules.cart.public import cart_public_route
 from app.modules.customer import customer_route
 from app.modules.dashboard import dashboard_route
+from app.modules.leads import leads_dashboard_route, leads_route
 from app.modules.master.frame_types import frame_type_routes
 from app.modules.master.glass_type import glass_type_routes
 from app.modules.master.misc_charges import misc_charges_routes
@@ -50,15 +51,21 @@ def setup_router(app: FastAPI) -> None:
     #region Meal Planner
     from app.modules.meal_planner import meal_planner_routes
     app.include_router(meal_planner_routes.router, prefix="/meal-planner", tags=["Meal Planner"])
+    #endregion
 
-    app.include_router(dashboard_route.router, prefix="/dashboard", tags=["Dashboard"])
 
     #region Administration
+    app.include_router(dashboard_route.router, prefix="/dashboard", tags=["Dashboard"])
     app.include_router(auth_routes.router, prefix="/auth", tags=["Auth"])
     app.include_router(organisation_units_routes.router, prefix="/organization-units", tags=["Organization Units"])
     app.include_router(role_routes.router, prefix="/roles", tags=["Roles"])
     app.include_router(role_permissions_routes.router, prefix="/roles-permissions", tags=["Roles-permissions"])
     app.include_router(user_routes.router, prefix="/users", tags=["Users"])
+    #endregion
+
+    #region Catalog
+    app.include_router(leads_route.router, prefix="/leads", tags=["Leads"])
+    app.include_router(leads_dashboard_route.router, prefix="/leads/dashboard", tags=["Leads"])
     #endregion
 
     #region Catalog

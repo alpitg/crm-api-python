@@ -12,6 +12,41 @@
       "parentName": "Pages",
       "isGrantedByDefault": false
     },
+    "LEADS": {
+      "name": "Pages.Leads",
+      "displayName": "Leads",
+      "description": "Access to leads section",
+      "parentName": "Pages",
+      "isGrantedByDefault": false,
+      "DETAIL": {
+        "name": "Pages.Leads.Detail",
+        "displayName": "Lead Details",
+        "description": "View lead details",
+        "parentName": "Pages.Leads",
+        "isGrantedByDefault": false
+      },
+      "CREATE": {
+        "name": "Pages.Leads.Create",
+        "displayName": "Create Lead",
+        "description": "Create new lead",
+        "parentName": "Pages.Leads",
+        "isGrantedByDefault": false
+      },
+      "EDIT": {
+        "name": "Pages.Leads.Edit",
+        "displayName": "Edit Lead",
+        "description": "Edit existing lead",
+        "parentName": "Pages.Leads",
+        "isGrantedByDefault": false
+      },
+      "DELETE": {
+        "name": "Pages.Leads.Delete",
+        "displayName": "Delete Lead",
+        "description": "Delete lead",
+        "parentName": "Pages.Leads",
+        "isGrantedByDefault": false
+      }
+    },
     "ADMINISTRATION": {
       "name": "Pages.Administration",
       "displayName": "Administration",
