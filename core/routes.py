@@ -47,13 +47,6 @@ def setup_router(app: FastAPI) -> None:
     #endregion
 
 
-
-    #region Meal Planner
-    from app.modules.meal_planner import meal_planner_routes
-    app.include_router(meal_planner_routes.router, prefix="/meal-planner", tags=["Meal Planner"])
-    #endregion
-
-
     #region Administration
     app.include_router(dashboard_route.router, prefix="/dashboard", tags=["Dashboard"])
     app.include_router(auth_routes.router, prefix="/auth", tags=["Auth"])
@@ -63,8 +56,9 @@ def setup_router(app: FastAPI) -> None:
     app.include_router(user_routes.router, prefix="/users", tags=["Users"])
     #endregion
 
-    #region Catalog
+    #region Leads
     app.include_router(leads_route.router, prefix="/leads", tags=["Leads"])
+    app.include_router(leads_route.public_router, prefix="/leads/public", tags=["Leads"])
     app.include_router(leads_dashboard_route.router, prefix="/leads/dashboard", tags=["Leads"])
     #endregion
 
@@ -86,3 +80,9 @@ def setup_router(app: FastAPI) -> None:
     app.include_router(mount_type_routes.router, prefix="/master/mount_types", tags=["Master - Mount Types"])
     app.include_router(order_status_routes.router, prefix="/master/order_status", tags=["Master - Order Status"])
     # endregion
+
+
+    #region Meal Planner
+    from app.modules.meal_planner import meal_planner_routes
+    app.include_router(meal_planner_routes.router, prefix="/meal-planner", tags=["Meal Planner"])
+    #endregion

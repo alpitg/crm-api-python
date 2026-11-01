@@ -1,10 +1,13 @@
+import asyncio
 import re
 from math import ceil
 from datetime import datetime, timezone
+from textwrap import dedent
 
 from bson import ObjectId
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pymongo import ReturnDocument
+import logging
 
 from app.db.mongo import db
 from app.modules.leads.schemas.leads import (
@@ -13,11 +16,24 @@ from app.modules.leads.schemas.leads import (
     LeadOut,
     PaginatedLeads,
 )
+from app.services import mail_service
 from app.utils.auth_utils import authenticate
+
+from config import settings
+
+logger = logging.getLogger(__name__)
+
+# ============================================================
+# ROUTER
+# ============================================================
 
 router = APIRouter(
     dependencies=[Depends(authenticate)]  # ✅ applies to all routes
 )
+
+public_router = APIRouter()
+
+
 collection = db["leads"]
 
 # Fields the client may sort by (frontend name -> Mongo field)
@@ -125,7 +141,8 @@ async def get_lead(id: str):
     return to_lead_out(lead)
 
 
-@router.post("", response_model=LeadOut)
+@public_router.post("", response_model=LeadOut)
+# @router.post("", response_model=LeadOut)
 async def create_lead(payload: LeadIn):
     now = datetime.now(timezone.utc)
     lead = {
@@ -135,6 +152,50 @@ async def create_lead(payload: LeadIn):
     }
     result = await collection.insert_one(lead)
     lead["_id"] = result.inserted_id
+
+
+    try: 
+
+        body = dedent(f"""
+            NEW HOME INTERIOR QUOTE REQUEST
+            ========================================
+
+            A customer has submitted a quote request through the website.
+
+            CUSTOMER DETAILS
+            ----------------------------------------
+            Name          : {payload.name}
+            Mobile        : {payload.phone}
+            Home Type     : {payload.homeType}
+
+            QUOTE DETAILS
+            ----------------------------------------
+            Quote ID      : {result["quoteId"]}
+            Submitted At  : {result["createdAt"]}
+
+            NEXT ACTION
+            ----------------------------------------
+            Please contact the customer to discuss their home interior
+            requirements and provide a personalised quotation.
+
+            ----------------------------------------
+            This is an automated notification from your website.
+        """).strip()
+
+        # Send email notification in a separate thread to avoid blocking the main thread
+        asyncio.to_thread(
+            mail_service.send_email,
+            subject="Artisan Studios - New Home Interior Quote Request",
+            recipients=[settings.INQUIRY_EMAIL],
+            body=body,
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to send quote request email notification: %s",
+            str(exc),
+        )
+
+
     return to_lead_out(lead)
 
 
