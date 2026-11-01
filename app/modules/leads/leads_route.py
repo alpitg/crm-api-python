@@ -187,7 +187,11 @@ async def create_lead(payload: LeadIn):
             asyncio.to_thread(
                 mail_service.send_email,
                 subject="Artisan Studios - New Home Interior Quote Request",
-                recipients=[settings.INQUIRY_EMAIL],
+                recipients=[
+                    email.strip()
+                    for email in settings.INQUIRY_EMAIL.split(",")
+                    if email.strip()
+                ],
                 body=body,
             )
         )
