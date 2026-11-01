@@ -165,13 +165,13 @@ async def create_lead(payload: LeadIn):
             CUSTOMER DETAILS
             ----------------------------------------
             Name          : {payload.name}
-            Mobile        : {payload.phone}
-            Home Type     : {payload.homeType}
+            Mobile        : {payload.mobile}
+            Quote Details : {payload.quoteDetails}
 
             QUOTE DETAILS
             ----------------------------------------
-            Quote ID      : {result["quoteId"]}
-            Submitted At  : {result["createdAt"]}
+            Quote ID      : {lead["_id"]}
+            Submitted At  : {lead["createdAt"]}
 
             NEXT ACTION
             ----------------------------------------
@@ -183,11 +183,13 @@ async def create_lead(payload: LeadIn):
         """).strip()
 
         # Send email notification in a separate thread to avoid blocking the main thread
-        asyncio.to_thread(
-            mail_service.send_email,
-            subject="Artisan Studios - New Home Interior Quote Request",
-            recipients=[settings.INQUIRY_EMAIL],
-            body=body,
+        asyncio.create_task(
+            asyncio.to_thread(
+                mail_service.send_email,
+                subject="Artisan Studios - New Home Interior Quote Request",
+                recipients=[settings.INQUIRY_EMAIL],
+                body=body,
+            )
         )
     except Exception as exc:
         logger.error(

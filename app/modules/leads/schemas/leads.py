@@ -24,6 +24,7 @@ class LeadIn(BaseModel):
     status: LeadStatus = LeadStatus.new
     value: float = 0  # expected deal value
     owner: Optional[str] = None  # assigned sales person
+    quoteDetails: Optional[str] = None  # details of the quote requested
     description: Optional[str] = None
     isActive: bool = True
 
